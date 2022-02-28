@@ -1,0 +1,20 @@
+/* Settings */
+.setting_container {
+    padding: 1rem 1rem 0 1rem;
+    margin: 1rem;
+    background: #F0F0F0;
+    border: 1px solid lightgrey;
+    border-radius: 10px;
+}
+
+.setting-header {
+    margin-bottom: 1rem;
+}
+
+.setting-header a:link {
+    color: black;
+}
+
+.setting-header a:visited {
+    color: black;
+}
