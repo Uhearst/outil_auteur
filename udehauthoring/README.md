@@ -24,6 +24,8 @@ virtuel (SAV)](https://vls.ecampusontario.ca/fr/)
 
 UdeH Auteur est sous licence creative commons. Lire ci-dessous les termes qui encadre son utilisation
 
+Créateur : ©[Uhearst](http://www.uhearst.ca/), 2022 en partenariat avec la [SOFAD](https://sofad.qc.ca/).
+
 ## Cycle de vie
 
 Actuellement en phase **Alpha**, version: 0.1 Alpha (Build - 2022022800).
