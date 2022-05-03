@@ -18,11 +18,11 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $plugin->add_child($format_udehauthoring);
 
         // Course backup
-
+        // todo what to do with units???
         $course_plan = new backup_nested_element('udeha_course', ['id'], [
-            'unit', 'code', 'bloc', 'teachercontacthours', 'teacherzoomlink',
-            'teachername', 'teacherphone', 'teachercellphone', 'teacheremail', 'coursezoomlink',
-            'title', 'question', 'description', 'problematic', 'place', 'method', 'bibliography',
+            'unit', 'code', 'credit', 'bloc', 'teachername', 'teacherphone', 'teachercellphone', 'teacheremail',
+            'teachercontacthours', 'teacherzoomlink', 'coursezoomlink',
+            'title', 'question', 'embed', 'isembed', 'description', 'problematic', 'place', 'method', 'bibliography',
             'attendance', 'plagiarism', 'disponibility', 'annex', 'timemodified'
         ]);
         $format_udehauthoring->add_child($course_plan);
@@ -46,7 +46,7 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $teaching_obj->add_child($learning_objs);
 
         $learning_obj = new backup_nested_element('udeha_learning_obj', ['id'], [
-            'learningobjective', 'learningobjectivecompetency', 'timemodified', 'audehevaluationid'
+            'learningobjective', 'learningobjectivecompetency', 'audehevaluationid', 'timemodified'
         ]);
         $learning_objs->add_child($learning_obj);
         $learning_obj->set_source_table('udehauthoring_learning_obj', ['audehteachingobjectiveid' => backup::VAR_PARENTID]);
@@ -57,7 +57,7 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $course_plan->add_child($section_plans);
 
         $section_plan = new backup_nested_element('udeha_section', ['id'], [
-            'title', 'description', 'introductiontext', 'question', 'evaluation', 'comments', 'timemodified'
+            'title', 'description', 'introductiontext', 'question', 'comments', 'timemodified'
         ]);
         $section_plans->add_child($section_plan);
         $section_plan->set_source_table('udehauthoring_section', ['audehcourseid' => backup::VAR_PARENTID]);
@@ -112,6 +112,18 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $resource_plans->add_child($resource_plan);
         $resource_plan->set_source_table('udehauthoring_resource', ['audehsubquestionid' => backup::VAR_PARENTID]);
         $resource_plan->annotate_files('format_udehauthoring', 'resourcevignette', 'id');
+
+        // Learning objectives of evaluations backup
+
+        $evaluation_objs = new backup_nested_element('udeha_evaluation_objs');
+        $course_plan->add_child($evaluation_objs);
+
+        $evaluation_obj = new backup_nested_element('udeha_evaluation_obj', ['id'], [
+            'audehevaluationid', 'audehlearningobjectiveid', 'timemodified'
+        ]);
+        $evaluation_obj->set_source_table('udehauthoring_evaluation_obj', ['audehcourseid' => backup::VAR_PARENTID]);
+
+        // todo exp_tool
 
         return $plugin;
     }

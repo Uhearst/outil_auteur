@@ -34,7 +34,7 @@ class utils
                 continue;
             }
 
-            $render_array[] = self::renderMediaHTML($file);
+            $render_array[$file->get_filepath() . $file->get_filename()] = self::renderMediaHTML($file);
         }
 
         return $render_array;
@@ -50,9 +50,16 @@ class utils
         $filename = $file->get_filename();
 
         // Using double quotes around href attribute is needed for media filter to kick in
-        return $file->is_valid_image() ?
-            "<img src='@@PLUGINFILE@@{$filepath}{$filename}'>" :
-            "<a href=\"@@PLUGINFILE@@{$filepath}{$filename}#d=1024x768\">@@PLUGINFILE@@{$filepath}{$filename}</a>" ;
+
+        $mimetype = $file->get_mimetype();
+        if ($file->is_valid_image()) {
+            return "<img src='@@PLUGINFILE@@{$filepath}{$filename}'>";
+        } else if(0 === strpos($file->get_mimetype(), 'video')) {
+            return "<a href=\"@@PLUGINFILE@@{$filepath}{$filename}#d=1024x768\">@@PLUGINFILE@@{$filepath}{$filename}</a>";
+        } else {
+            return "@@PLUGINFILE@@{$filepath}{$filename}";
+        }
+
     }
 
     /**
@@ -118,6 +125,99 @@ class utils
 
         foreach ($toupdate as $path) {
             $srcfile = $srcfiles[$path];
+            $destfile = $destfiles[$path];
+
+            if ($destfile->get_timemodified() < $srcfile->get_timemodified()) {
+                $destfile->replace_file_with($srcfile);
+                $haschanges = true;
+            }
+        }
+
+        foreach (array_reverse($todelete) as $path) {
+            $destfile = $destfiles[$path];
+
+            $destfile->delete();
+            $haschanges = true;
+        }
+
+        return $haschanges;
+    }
+
+    public static function copyToFileareaMultiple($sources, $destcontextid, $destcomponent, $destfilearea, $destitemid) {
+        // sources: folder, contextid, component, filearea, itemid
+
+        $fs = get_file_storage();
+
+        $srcfiles = [];
+        foreach ($sources as $source) {
+            $srcareafiles = $fs->get_area_files($source->contextid, $source->component, $source->filearea, $source->itemid);
+            foreach ($srcareafiles as $file) {
+                $srcfiles['/' . $source->folder . $file->get_filepath() . $file->get_filename()] = (object)[
+                    'source' => $source,
+                    'file' => $file
+                ];
+            }
+        }
+        $srcfilepaths = array_keys($srcfiles);
+
+        $destfiles = [];
+        $destareafiles = $fs->get_area_files($destcontextid, $destcomponent, $destfilearea, $destitemid);
+        foreach ($destareafiles as $file) {
+            $destfiles[$file->get_filepath() . $file->get_filename()] = $file;
+        }
+        $destfilepaths = array_keys($destfiles);
+
+        $toinsert = array_diff($srcfilepaths, $destfilepaths);
+        $toupdate = array_intersect($srcfilepaths, $destfilepaths);
+        $todelete = array_diff($destfilepaths, $srcfilepaths);
+        $haschanges = false;
+
+        // make missing folders
+        foreach ($sources as $source) {
+            $folder = $fs->get_file($destcontextid, $destcomponent, $destfilearea, $destitemid, '/' . $source->folder, '.');
+            if (!$folder) {
+                $fs->create_directory($destcontextid, $destcomponent, $destfilearea, $destitemid, "/{$source->folder}/");
+            }
+        }
+
+        // delete obsolete folders
+        $destdirs = $fs->get_directory_files($destcontextid, $destcomponent, $destfilearea, $destitemid, '/');
+        $neededdirs = array_map(function ($source) { return '/' . $source->folder; }, $sources);
+        foreach ($destdirs as $destdir) {
+            if ($destdir === '.') {
+                continue;
+            }
+
+            if (!in_array($destdir->get_filepath(), $neededdirs)) {
+                $destdir->delete();
+            }
+        }
+
+        foreach ($toinsert as $path) {
+            $srcfile = $srcfiles[$path]->file;
+            $folder = $srcfiles[$path]->source->folder;
+            if ($srcfile->get_filename() === '.') {
+                if($srcfile->get_filepath() === '/') {
+                    continue;
+                }
+
+                $fs->create_directory($destcontextid, $destcomponent, '/' . $folder . $destfilearea, $destitemid, $srcfile->get_filepath());
+            } else {
+
+                $fs->create_file_from_storedfile([
+                    'contextid' => $destcontextid,
+                    'component' => $destcomponent,
+                    'filearea' => $destfilearea,
+                    'itemid' => $destitemid,
+                    'filepath' => '/' . $folder . $srcfile->get_filepath(),
+                    'filename' => $srcfile->get_filename()],
+                    $srcfile);
+                $haschanges = true;
+            }
+        }
+
+        foreach ($toupdate as $path) {
+            $srcfile = $srcfiles[$path]->file;
             $destfile = $destfiles[$path];
 
             if ($destfile->get_timemodified() < $srcfile->get_timemodified()) {
@@ -221,14 +321,16 @@ class utils
         $publish_content->publish();
     }
 
-    public static function breadCrumb($title) {
+    public static function breadCrumb($courseplan) {
         $nav = \html_writer::start_tag('div', ['class' => 'breadcrumb-container p-1']);
+        $nav .= \html_writer::start_tag('a', ['href' => (new \moodle_url('/course/view.php', ['id' => $courseplan->courseid]))->out()]);
         $nav .= \html_writer::tag('img', '', [
             'src' => '../assets/logo-moodle-couleur-40x40.png',
             'alt' => 'Visualiser',
             'class' => 'mr-2',
             'style' => 'margin-bottom: 0.25rem !important;']);
-        $nav .= \html_writer::tag('span', ' > Outil Auteur > ' . strip_tags($title));
+        $nav .= \html_writer::end_tag('a');
+        $nav .= \html_writer::tag('span', ' > Outil Auteur > ' . strip_tags($courseplan->title));
         $nav .= \html_writer::end_tag('div');
         return $nav;
     }
@@ -371,7 +473,7 @@ class utils
 
         $elementArray = utils::buildMainMenuArray($courseplan);
         $currentPage = strtok($currentelement, '.php');
-        $currentId = substr($currentelement, (strpos($currentelement, '=') + 1), 1);
+        $currentId = substr($currentelement, (strpos($currentelement, '=') + 1));
 
 
         $nav = \html_writer::start_tag('div', ['id' => 'main-container', 'class' => 'row']);
@@ -381,13 +483,19 @@ class utils
         foreach($elementArray as $key=>$element) {
             if($key == 0) {
                 $nav .= utils::buildMainMenuElementDisplay('../assets/plan-de-cours-icon-', get_string('courseplan', 'format_udehauthoring'), 'collapse-course-container',
-                    $currentPage === 'course');
-                $nav .= \html_writer::start_tag('ul', ['id' => 'collapse-course-container', 'class' => 'collapse', 'data-parent' => "#element-menu"]);
+                    $currentPage === 'course', false);
+                $nav .= \html_writer::start_tag('ul', ['id' => 'collapse-course-container', 'class' => ($currentPage === 'course') ? 'collapse show' : 'collapse', 'data-parent' => "#element-menu"]);
                 foreach($element->subitems as $item) {
-                    $nav .= \html_writer::start_tag('li', ['id' => 'item-' . $item->name, 'class' => 'mb-3',
+                    $nav .= \html_writer::start_tag('li', ['id' => 'item-' . $item->tagname,
+                        'class' => $item->disabled ? 'mb-3 disabled-menu-element' : 'mb-3',
+                        'onclick' => 'if(!window.location.href.includes("course.php")) { 
+                            this.firstElementChild.firstElementChild.setAttribute("src", "' . $item->imgsrc . 'actif-40x40.png"); 
+                            this.setAttribute("onmouseout", "") 
+                        }',
                         'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "' . $item->imgsrc . 'actif-40x40.png")',
                         'onmouseout' => 'this.firstElementChild.firstElementChild.setAttribute("src", "' . $item->imgsrc . 'passif-40x40.png")']);
-                    $nav .= \html_writer::start_tag('a', ['href' => (new \moodle_url('/course/format/udehauthoring/redact/course.php', ['course_id' => $element->courseid], $item->anchor))->out()]);
+                    $nav .= \html_writer::start_tag('a', ['href' => (new \moodle_url('/course/format/udehauthoring/redact/course.php', ['course_id' => $element->courseid], $item->anchor))->out(),
+                        'class' => $item->disabled ? 'disabled-menu-element' : '']);
                     $nav .= \html_writer::tag('img', '', [
                         'src' => $item->imgsrc . 'passif-40x40.png',
                         'alt' => $item->name,
@@ -399,10 +507,11 @@ class utils
                 $nav .= \html_writer::end_tag('ul');
             } else if($key == 1) {
                 $nav .= utils::buildMainMenuElementDisplay('../assets/structure-des-modules-icon-', get_string('sectionstructure', 'format_udehauthoring'), 'collapse-section-container',
-                    $currentPage === 'section');
-                $nav .= \html_writer::start_tag('ul', ['id' => 'collapse-section-container', 'class' => 'collapse' , 'data-parent' => "#element-menu"]);
+                    $currentPage === 'section', (count($element) == 0));
+                $nav .= \html_writer::start_tag('ul', ['id' => 'collapse-section-container', 'class' => ($currentPage === 'section') ? 'collapse show' : 'collapse' , 'data-parent' => "#element-menu"]);
                 foreach($element as $section) {
                     $nav .= \html_writer::start_tag('li', ['id' => 'item-' . $item->name, 'class' => $currentPage === 'section' && $currentId === $section->id ? 'mb-3 active-menu-element' : 'mb-3',
+                        'onclick' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-actif-40x40.png"); this.setAttribute("onmouseout", "")',
                         'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-actif-40x40.png")',
                         'onmouseout' => $currentPage === 'section' && $currentId === $section->id ?
                             'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-actif-40x40.png")' :
@@ -420,10 +529,10 @@ class utils
                 $nav .= \html_writer::end_tag('ul');
             } else if($key == 2) {
                 $isactive = $currentPage === 'subquestion' || $currentPage === 'evaluation' || $currentPage === 'globalevaluation';
-
+                $isEmpty = utils::checkIfHasElement($element, $courseplan);
                 $nav .= utils::buildMainMenuElementDisplay('../assets/trames-activites-icon-', get_string('subquestionandexploration', 'format_udehauthoring'), 'collapse-subquestion-container',
-                    $isactive);
-                $nav .= \html_writer::start_tag('ul', ['id' => 'collapse-subquestion-container', 'class' => 'collapse' , 'data-parent' => "#element-menu"]);
+                    $isactive, $isEmpty);
+                $nav .= \html_writer::start_tag('ul', ['id' => 'collapse-subquestion-container', 'class' => $isactive ? 'collapse show' : 'collapse' , 'data-parent' => "#element-menu"]);
                 foreach ($element as $key=>$section) {
                     $isCurrentSection = false;
                     if($currentPage === 'subquestion') {
@@ -437,37 +546,58 @@ class utils
                             $isCurrentSection = true;
                         }
                     }
-                    $nav .= \html_writer::start_tag('li', ['class' => $isCurrentSection ? 'mb-3 active-menu-element' : 'mb-3',
-                        'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-actif-40x40.png")',
-                        'onmouseout' => $isCurrentSection ?
-                            'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-actif-40x40.png")' :
-                            'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-passif-40x40.png")']);
-                    $nav .= \html_writer::start_tag('a', [
-                        'class' => $isCurrentSection ? 'collapsed section_header collapse-link active' : 'collapsed section_header collapse-link',
-                        'href' => '#subquestion_' . $key,
-                        'data-toggle' => 'collapse',
-                        'role' => 'button',
-                        'aria-expanded' => 'false',
-                        'aria-controls' => 'subquestion_' . $key,
-                        'style' => 'font-weight: bold']);
-                    $nav .= \html_writer::tag('img', '', [
-                        'src' => $isCurrentSection ? '../assets/module-icon-actif-40x40.png' : '../assets/module-icon-passif-40x40.png',
-                        'alt' => 'Module du cours',
-                        'class' => 'mr-2']);
+                    if($section->subquestions == [] && !property_exists($section, 'evaluation')) {
+                        $nav .= \html_writer::start_tag('li', ['class' =>'mb-3 disabled-menu-element',
+                            'disabled' => true]);
+                        $nav .= \html_writer::start_tag('a', [
+                            'class' => 'collapsed section_header collapse-link disabled-menu-element',
+                            'data-toggle' => 'collapse',
+                            'role' => 'button',
+                            'aria-expanded' => 'false',
+                            'aria-controls' => 'subquestion_' . $key,
+                            'style' => 'font-weight: bold']);
+                        $nav .= \html_writer::tag('img', '', [
+                            'src' => '../assets/module-icon-passif-40x40.png',
+                            'alt' => 'Module du cours',
+                            'class' => 'mr-2']);
+                    } else {
+                        $nav .= \html_writer::start_tag('li', ['class' => $isCurrentSection ? 'mb-3 active-menu-element' : 'mb-3',
+                            'onclick' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-actif-40x40.png"); this.setAttribute("onmouseout", "")',
+                            'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-actif-40x40.png")',
+                            'onmouseout' => $isCurrentSection ?
+                                'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-actif-40x40.png")' :
+                                'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/module-icon-passif-40x40.png")']);
+                        $nav .= \html_writer::start_tag('a', [
+                            'class' => $isCurrentSection ? 'collapsed section_header collapse-link active' : 'collapsed section_header collapse-link',
+                            'href' => '#subquestion_' . $key,
+                            'data-toggle' => 'collapse',
+                            'role' => 'button',
+                            'aria-expanded' => 'false',
+                            'aria-controls' => 'subquestion_' . $key,
+                            'style' => 'font-weight: bold']);
+                        $nav .= \html_writer::tag('img', '', [
+                            'src' => $isCurrentSection ? '../assets/module-icon-actif-40x40.png' : '../assets/module-icon-passif-40x40.png',
+                            'alt' => 'Module du cours',
+                            'class' => 'mr-2']);
+                    }
+
+
+
                     $nav .= \html_writer::tag('span', $section->name);
                     $nav .= \html_writer::end_tag('a');
                     $nav .= \html_writer::end_tag('li');
-                    $nav .= \html_writer::start_tag('div', ['id' => 'subquestion_' . $key, 'class' => 'collapse', 'data-parent' => "#collapse-subquestion-container"]);
+                    $nav .= \html_writer::start_tag('div', ['id' => 'subquestion_' . $key, 'class' => $isCurrentSection ? 'collapse show' : 'collapse', 'data-parent' => "#collapse-subquestion-container"]);
                     if(property_exists($section, 'subquestions')) {
                         $nav .= \html_writer::start_tag('ul', ['class' => 'subquestion-container']);
                         foreach ($section->subquestions as $subquestion) {
                             $nav .= \html_writer::start_tag('li', ['class' => $currentPage === 'subquestion' && $currentId === $subquestion->id ? 'mb-3 active-menu-element' : 'mb-3',
+                                'onclick' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/trame-icon-actif-40x40.png"); this.setAttribute("onmouseout", "")',
                                 'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/trame-icon-actif-40x40.png")',
                                 'onmouseout' => $currentPage === 'subquestion' && $currentId === $subquestion->id ?
                                     'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/trame-icon-actif-40x40.png")' :
                                     'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/trame-icon-passif-40x40.png")']);
                             $nav .= \html_writer::start_tag('a', ['href' => (new \moodle_url('/course/format/udehauthoring/redact/subquestion.php', ['id' => $subquestion->id]))->out(),
-                                'class' => $currentPage === 'subquestion' && $currentId === $subquestion->id ? 'ml-4 active' : 'ml-4']);
+                                'class' => $currentPage === 'subquestion' && $currentId === $subquestion->id ? 'active sub-section-link' : 'sub-section-link']);
                             $nav .= \html_writer::tag('img', '', [
                                 'src' => $currentPage === 'subquestion' && $currentId === $subquestion->id ? '../assets/trame-icon-actif-40x40.png' : '../assets/trame-icon-passif-40x40.png',
                                 'alt' => 'Trame du module',
@@ -480,12 +610,13 @@ class utils
                     }
                     if(property_exists($section, 'evaluation')) {
                         $nav .= \html_writer::start_tag('li', ['class' => $currentPage === 'evaluation' && $currentId === $section->evaluation->id ? 'mb-3 active-menu-element' : 'mb-3',
+                            'onclick' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/evaluation-apprentissage-icon-actif-40x40.png"); this.setAttribute("onmouseout", "")',
                             'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/evaluation-apprentissage-icon-actif-40x40.png")',
                             'onmouseout' => $currentPage === 'evaluation' && $currentId === $section->evaluation->id ?
                                 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/evaluation-apprentissage-icon-actif-40x40.png")' :
                                 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/evaluation-apprentissage-icon-passif-40x40.png")']);
                         $nav .= \html_writer::start_tag('a', ['href' => (new \moodle_url('/course/format/udehauthoring/redact/evaluation.php', ['id' => $section->evaluation->id]))->out(),
-                            'class' => $currentPage === 'evaluation' && $currentId === $section->evaluation->id ? 'ml-4 active' : 'ml-4']);
+                            'class' => $currentPage === 'evaluation' && $currentId === $section->evaluation->id ? 'active sub-section-link' : 'sub-section-link']);
                         $nav .= \html_writer::tag('img', '', [
                             'src' => $currentPage === 'evaluation' && $currentId === $section->evaluation->id ? '../assets/evaluation-apprentissage-icon-actif-40x40.png' : '../assets/evaluation-apprentissage-icon-passif-40x40.png',
                             'alt' => 'Evaluation du module',
@@ -498,6 +629,7 @@ class utils
                 }
                 if(evaluation_plan::instance_all_global_by_course_plan_id($courseplan->id)) {
                     $nav .= \html_writer::start_tag('li', ['class' => $currentPage === 'globalevaluation' ? 'mb-3 active-menu-element' : 'mb-3',
+                        'onclick' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/evaluation-globale-icon-actif-40x40.png"); this.setAttribute("onmouseout", "")',
                         'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/evaluation-globale-icon-actif-40x40.png")',
                         'onmouseout' => $currentPage === 'globalevaluation' ?
                             'this.firstElementChild.firstElementChild.setAttribute("src", "../assets/evaluation-globale-icon-actif-40x40.png")' :
@@ -526,26 +658,84 @@ class utils
         return $nav;
     }
 
-    public static function buildMainMenuElementDisplay($url, $content, $target, $isactive) {
-        $nav = \html_writer::start_tag('div', ['class' => $isactive ? 'menu-main-element active-menu-element' : 'menu-main-element',
-            'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "' . $url . 'actif-40x40.png")',
-            'onmouseout' => !$isactive ? 'this.firstElementChild.firstElementChild.setAttribute("src", "' . $url . 'passif-40x40.png")' : 'this.firstElementChild.firstElementChild.setAttribute("src", "' . $url . 'actif-40x40.png")']);
-        $nav .= \html_writer::start_tag('a', [
-            'class' => $isactive ? 'collapsed collapse-link active' : 'collapsed collapse-link',
-            'data-target' => '#' . $target,
-            'data-toggle' => 'collapse',
-            'role' => 'button',
-            'aria-expanded' => 'false',
-            'href' => 'javascript:void(0);',
-            'aria-controls' => $target,
-            'style' => 'font-weight: bold']);
-        $nav .= \html_writer::tag('img', '', [
-            'src' => $isactive ? $url . 'actif-40x40.png' : $url . 'passif-40x40.png',
-            'alt' => 'altimg',
-            'class' => 'mr-2']);
-        $nav .= \html_writer::tag('span', $content);
-        $nav .= \html_writer::end_tag('a');
-        $nav .= \html_writer::end_tag('div');
+    public static function checkIfHasElement($elements, $courseplan) {
+        if(count($elements) > 0) {
+            for($i = 0; $i < count($elements); $i++) {
+                if(property_exists($elements[$i], 'subquestions') && $elements[$i]->subquestions != [] && $elements[$i]->subquestions != null) {
+                    return false;
+                }
+                if(property_exists($elements[$i], 'evaluation') && $elements[$i]->evaluation != null) {
+                    return false;
+                }
+            }
+        }
+        if(evaluation_plan::instance_all_global_by_course_plan_id($courseplan->id) != []) {
+            return false;
+        }
+        return true;
+
+    }
+
+    public static function checkEmptySubElement($elements, $courseplan) {
+        if(count($elements) > 0) {
+            for($i = 0; $i < count($elements); $i++) {
+                if(property_exists($elements[$i], 'subquestions') && $elements[$i]->subquestions != [] && $elements[$i]->subquestions != null) {
+                    return false;
+                }
+                if(property_exists($elements[$i], 'evaluation') && $elements[$i]->evaluation != null) {
+                    return false;
+                }
+            }
+        }
+        if(evaluation_plan::instance_all_global_by_course_plan_id($courseplan->id) != []) {
+            return false;
+        }
+        return true;
+
+    }
+
+    public static function buildMainMenuElementDisplay($url, $content, $target, $isactive, $isdisabled = false) {
+        if($isdisabled) {
+            $nav = \html_writer::start_tag('div', ['class' => 'menu-main-element disabled-menu-element',
+                'disabled' => true]);
+            $nav .= \html_writer::start_tag('a', [
+                'class' => 'collapsed collapse-link disabled-menu-element',
+                'disabled' => true,
+                'data-toggle' => 'collapse',
+                'role' => 'button',
+                'aria-expanded' => 'false',
+                'href' => 'javascript:void(0);',
+                'aria-controls' => $target,
+                'style' => 'font-weight: bold']);
+            $nav .= \html_writer::tag('img', '', [
+                'src' => $url . 'passif-40x40.png',
+                'alt' => 'altimg',
+                'class' => 'mr-2']);
+            $nav .= \html_writer::tag('span', $content);
+            $nav .= \html_writer::end_tag('a');
+            $nav .= \html_writer::end_tag('div');
+        } else {
+            $nav = \html_writer::start_tag('div', ['class' => $isactive ? 'menu-main-element active-menu-element' : 'menu-main-element',
+                'onmouseover' => 'this.firstElementChild.firstElementChild.setAttribute("src", "' . $url . 'actif-40x40.png")',
+                'onmouseout' => !$isactive ? 'this.firstElementChild.firstElementChild.setAttribute("src", "' . $url . 'passif-40x40.png")' : 'this.firstElementChild.firstElementChild.setAttribute("src", "' . $url . 'actif-40x40.png")']);
+            $nav .= \html_writer::start_tag('a', [
+                'class' => $isactive ? 'collapsed collapse-link active' : 'collapsed collapse-link',
+                'data-target' => '#' . $target,
+                'data-toggle' => 'collapse',
+                'role' => 'button',
+                'aria-expanded' => $isactive ? 'true' : 'false',
+                'href' => 'javascript:void(0);',
+                'aria-controls' => $target,
+                'style' => 'font-weight: bold']);
+            $nav .= \html_writer::tag('img', '', [
+                'src' => $isactive ? $url . 'actif-40x40.png' : $url . 'passif-40x40.png',
+                'alt' => 'altimg',
+                'class' => 'mr-2']);
+            $nav .= \html_writer::tag('span', $content);
+            $nav .= \html_writer::end_tag('a');
+            $nav .= \html_writer::end_tag('div');
+        }
+
         return $nav;
     }
 
@@ -573,7 +763,7 @@ class utils
                     }
                     $elementArray[] = $sections;
                 } else {
-                    return $elementArray;
+                    $elementArray[] = $sections;
                 }
             } else if($i == 2) {
                 foreach ($sections as $key=>$section) {
@@ -611,73 +801,51 @@ class utils
     }
 
     public static function buildCourseItems($id) {
-
-        $string['learningevaluations'] = 'Évaluation des apprentissages';
-        $string['generalinformations'] = 'Informations générales';
-        $string['teachingobjectives'] = 'Objectifs d\'enseignement';
-        $string['coursesections'] = 'Modules du cours';
-
-
         global $DB;
         $elementArray = [];
-        if($id == null) {
+        for($i = 0; $i < 4; $i++) {
             $obj = new stdClass();
-            $obj->name = get_string('generalinformations', 'format_udehauthoring');
-            $obj->anchor = 'displayable-form-informations-container';
-            $obj->imgsrc = '../assets/information-generale-icon-';
-            $elementArray[] = $obj;
-        } else {
-            if($DB->get_records('udehauthoring_section', ['audehcourseid' => $id])) {
-                for($i = 0; $i < 4; $i++) {
-                    $obj = new stdClass();
-                    switch ($i) {
-                        case 0:
-                            $obj->name = get_string('generalinformations', 'format_udehauthoring');
-                            $obj->anchor = 'displayable-form-informations-container';
-                            $obj->imgsrc = '../assets/information-generale-icon-';
-                            break;
-                        case 1:
-                            $obj->name = get_string('teachingobjectives', 'format_udehauthoring');
-                            $obj->anchor = 'displayable-form-objectives-container';
-                            $obj->imgsrc = '../assets/objectif-enseignement-icon-';
-                            break;
-                        case 2:
-                            $obj->name = get_string('coursesections', 'format_udehauthoring');
-                            $obj->anchor = 'displayable-form-sections-container';
-                            $obj->imgsrc = '../assets/modules-du-cours-icon-';
-                            break;
-                        case 3:
-                            $obj->name = get_string('learningevaluations', 'format_udehauthoring');
-                            $obj->anchor = 'displayable-form-evaluations-container';
-                            $obj->imgsrc = '../assets/evaluation-apprentissage-icon-';
-                            break;
-                    }
-                    $elementArray[] = $obj;
-                }
-            } else {
-                for($i = 0; $i < 3; $i++) {
-                    $obj = new stdClass();
-                    switch ($i) {
-                        case 0:
-                            $obj->name = get_string('generalinformations', 'format_udehauthoring');
-                            $obj->anchor = 'displayable-form-informations-container';
-                            $obj->imgsrc = '../assets/information-generale-icon-';
-                            break;
-                        case 1:
-                            $obj->name = get_string('teachingobjectives', 'format_udehauthoring');
-                            $obj->anchor = 'displayable-form-objectives-container';
-                            $obj->imgsrc = '../assets/objectif-enseignement-icon-';
-                            break;
-                        case 2:
-                            $obj->name = get_string('coursesections', 'format_udehauthoring');
-                            $obj->anchor = 'displayable-form-sections-container';
-                            $obj->imgsrc = '../assets/modules-du-cours-icon-';
-                            break;
-                    }
-                    $elementArray[] = $obj;
-                }
+            switch ($i) {
+                case 0:
+                    $obj->name = get_string('generalinformations', 'format_udehauthoring');
+                    $obj->anchor = 'displayable-form-informations-container';
+                    $obj->imgsrc = '../assets/information-generale-icon-';
+                    $obj->disabled = false;
+                    $obj->tagname = 'generalinformations';
+                    break;
+                case 1:
+                    $obj->name = get_string('teachingobjectives', 'format_udehauthoring');
+                    $obj->anchor = 'displayable-form-objectives-container';
+                    $obj->imgsrc = '../assets/objectif-enseignement-icon-';
+                    $obj->disabled = false;
+                    $obj->tagname = 'teachingobjectives';
+                    break;
+                case 2:
+                    $obj->name = get_string('coursesections', 'format_udehauthoring');
+                    $obj->anchor = 'displayable-form-sections-container';
+                    $obj->imgsrc = '../assets/modules-du-cours-icon-';
+                    $obj->disabled = false;
+                    $obj->tagname = 'coursesections';
+                    break;
+                case 3:
+                    $obj->name = get_string('learningevaluations', 'format_udehauthoring');
+                    $obj->anchor = 'displayable-form-evaluations-container';
+                    $obj->imgsrc = '../assets/evaluation-apprentissage-icon-';
+                    $obj->disabled = false;
+                    $obj->tagname = 'learningevaluations';
+                    break;
             }
+            $elementArray[] = $obj;
+        }
 
+        if($id == null) {
+            $elementArray[1]->disabled = true;
+            $elementArray[2]->disabled = true;
+            $elementArray[3]->disabled = true;
+        } else {
+            if(!$DB->get_records('udehauthoring_section', ['audehcourseid' => $id])) {
+                $elementArray[3]->disabled = true;
+            }
         }
         return $elementArray;
     }

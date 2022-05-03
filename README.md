@@ -28,7 +28,12 @@ Créateur : ©[Uhearst](http://www.uhearst.ca/), 2022 en partenariat avec la [SO
 
 ## Cycle de vie
 
-Actuellement en phase **Alpha**, version: 0.1 Alpha (Build - 2022022800).
+Actuellement en phase **Alpha**, version: 0.2 Alpha (Build - 2022042201).
+
+---
+Versions Précédentes:
+* 0.1 Alpha (Build - 2022022800) - Release initial
+---
 
 * Il est déconseillé d’installer ce plugin sur un serveur hébergeant de données critiques.
 * Cet outil n’est pas prêt pour un environnement de production.

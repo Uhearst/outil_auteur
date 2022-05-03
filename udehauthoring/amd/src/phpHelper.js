@@ -1,4 +1,5 @@
-import {formatEditorAndFileManager, removeTags} from "./utils";
+import {appendSizeToFileManager, formatEditorAndFileManager, getAndSetScrollPosition, removeTags} from "./utils";
+import {initRedactTools} from "./toolHelper";
 import {dictionnary} from "./language/format_udehauthoring_fr";
 
 let counterElement = 0;
@@ -7,44 +8,18 @@ let elementName = null;
 let subElementsName = null;
 
 /**
- * @param {array} titles
- */
-export function initGlobalEvaluations(titles) {
-   const decodedParams = JSON.parse(titles);
-   let addButton = document.getElementById('id_add_global_evaluation');
-   addButton.hidden = true;
-   let accordions = document.querySelectorAll('[class*="single-accordion-container"]');
-   accordions.forEach(function(accordion, i) {
-      let headerLink = accordion.firstElementChild.firstElementChild;
-      headerLink.href = '#collapseGlobalEvaluation' + (i);
-      headerLink.setAttribute('aria-controls', 'collapseGlobalEvaluation' + (i));
-      accordion.children[1].setAttribute('id', 'collapseGlobalEvaluation' + (i));
-      if (i > 0) {
-         accordion.children[1].setAttribute('class', 'collapse');
-         headerLink.setAttribute('aria-expanded', 'false');
-         headerLink.setAttribute('class', 'collapsed');
-      }
-      if (decodedParams[i]) {
-         let title = decodedParams[i];
-         let headerContent = 'Evaluation Globale' + ' ' + (i + 1) + ' - ' + removeTags(title);
-         headerLink.innerHTML = headerContent.length > 70 ? headerContent.substring(0, 70) + '...' : headerContent;
-      } else {
-         headerLink.innerHTML = 'Evaluation Globale' + ' ' + (i + 1);
-      }
-   });
-   formatEditorAndFileManager();
-}
-
-/**
  * @param {array} params
  */
 export function init(params) {
    const decodedParams = JSON.parse(params);
    setElementNameByType(decodedParams.type);
    handleInit(decodedParams.courseId, decodedParams.sectionId, decodedParams.subQuestionId, decodedParams.type);
+
    updateAddButtonStyle();
    updateRemoveButtonStyle();
    formatEditorAndFileManager();
+   getAndSetScrollPosition();
+   appendSizeToFileManager();
 }
 
 /**
@@ -67,7 +42,7 @@ function setElementNameByType(type) {
  * @param {int} type
  */
 function handleInit(courseId, sectionId, subQuestionId, type) {
-   if(type === 0) {
+   if (type === 0) {
       window.$.ajax(
           {
              type: "POST",
@@ -93,10 +68,6 @@ function handleInit(courseId, sectionId, subQuestionId, type) {
              }
           });
    } else {
-/*      let dataToSend = JSON.stringify({
-         sectionId: sectionId,
-         courseId: courseId
-      });*/
       window.$.ajax(
           {
              type: "POST",
@@ -122,6 +93,7 @@ function handleInit(courseId, sectionId, subQuestionId, type) {
                 window.console.log('failure');
              }
           });
+      initRedactTools();
    }
 }
 
@@ -153,7 +125,7 @@ function updateAddButtonStyle() {
 function updateRemoveButtonStyle() {
    let removeButtons = document.querySelectorAll('[name^="remove_"]');
    removeButtons.forEach(removeButton=> {
-      if(removeButton.getAttribute('type') === 'submit') {
+      if (removeButton.getAttribute('type') === 'submit') {
          let icon = document.createElement('i');
 
          let updatedButton = changeTag(removeButton, 'button');
@@ -203,7 +175,7 @@ function updateCurrentAccordions(subElementName, sectionIndex = null) {
    let accordions = null;
    let valueForAccordion = null;
    let valueForDiv = null;
-   if(subElementName === dictionnary.trame) {
+   if (subElementName === dictionnary.trame) {
       accordions = document.querySelectorAll('[class*="row_section_subquestion_container"]');
       valueForAccordion = 'SectionSubQuestion_';
       valueForDiv = 'subquestion';
@@ -254,7 +226,7 @@ function updateCurrentAccordions(subElementName, sectionIndex = null) {
  * @param {boolean} hasTitle
  */
 function updateAccordionText(headerLink, subElementName, counter, array, hasTitle = true) {
-   if(array && array[counter]) {
+   if (array && array[counter]) {
       let title = array[counter].title;
       let headerContent = '';
       if (hasTitle) {

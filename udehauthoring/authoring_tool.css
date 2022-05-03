@@ -34,6 +34,13 @@ header#page-header {
     height: 0 !important; /* stylelint-disable-line declaration-no-important */
 }
 
+div.col-form-label label,
+div.col-form-label p,
+.eval-obj-title {
+    font-size: 1.1em;
+    font-weight: 600
+}
+
 /*.navbar-nav [data-region="drawer-toggle"] button {
     display: none;
 }*/
@@ -105,7 +112,14 @@ div.element-menu a:link,
 div.element-menu a:visited {
     color: #a7a6a7;
     text-decoration: none !important; /* stylelint-disable-line declaration-no-important */
-    outline: none !important; /* stylelint-disable-line declaration-no-important */
+    outline: 0 !important; /* stylelint-disable-line declaration-no-important */
+}
+
+div.element-menu a:link,
+div.element-menu a:visited {
+    color: #a7a6a7;
+    text-decoration: none !important; /* stylelint-disable-line declaration-no-important */
+    outline: 0 !important; /* stylelint-disable-line declaration-no-important */
 }
 
 div.element-menu a:active,
@@ -115,7 +129,23 @@ div.element-menu #collapse-course-container li a.active,
 div.element-menu #collapse-section-container li a.active {
     color: #cdcbcd;
     text-decoration: none !important; /* stylelint-disable-line declaration-no-important */
-    outline: none !important; /* stylelint-disable-line declaration-no-important */
+    background-color: #0071da; /* stylelint-disable-line declaration-no-important */
+    outline: 0 !important; /* stylelint-disable-line declaration-no-important */
+}
+
+div.element-menu #collapse-subquestion-container li a:active,
+div.element-menu #collapse-course-container li a:active,
+div.element-menu #collapse-section-container li a:active,
+div.element-menu #collapse-subquestion-container li a:focus,
+div.element-menu #collapse-course-container li a:focus,
+div.element-menu #collapse-section-container li a:focus{
+    text-decoration: none; /* stylelint-disable-line declaration-no-important */
+    color: #cdcbcd;
+    background-color: #0071da; /* stylelint-disable-line declaration-no-important */
+    outline: 0 !important; /* stylelint-disable-line declaration-no-important */
+    border: none !important; /* stylelint-disable-line declaration-no-important */
+    box-shadow: none !important; /* stylelint-disable-line declaration-no-important */
+    -moz-outline-style: none !important; /* stylelint-disable-line declaration-no-important */
 }
 
 .menu-main-element:first-of-type {
@@ -128,16 +158,15 @@ div.element-menu #collapse-section-container li a.active {
     margin: 0.5rem 0;
 }
 
-
 div.element-menu #collapse-subquestion-container li:first-of-type,
 div.element-menu #collapse-course-container li:first-of-type,
 div.element-menu #collapse-section-container li:first-of-type {
     margin-top: 0.5rem;
 }
 
-div.element-menu #collapse-subquestion-container li,
-div.element-menu #collapse-course-container li,
-div.element-menu #collapse-section-container li {
+div.element-menu #collapse-subquestion-container>li>a,
+div.element-menu #collapse-course-container>li>a,
+div.element-menu #collapse-section-container>li>a {
     padding-left: 3rem;
 }
 
@@ -165,6 +194,10 @@ div.element-menu #collapse-section-container li a,
 .menu-main-element a {
     display: flex;
     align-items: center;
+}
+
+.sub-section-link {
+    padding-left: 5rem;
 }
 
 .menu-main-element a:after {
@@ -197,6 +230,12 @@ div.element-menu #collapse-section-container li a,
     content: '\f078';
     display: inline-block;
     margin-left: 1rem;
+}
+
+.disabled-menu-element {
+    pointer-events: none;
+    opacity: 0.5;
+    color: #a7a6a7 !important; /* stylelint-disable-line declaration-no-important */
 }
 
 /* Progression */
@@ -290,9 +329,21 @@ div.element-menu #collapse-section-container li a,
 
 /* Form */
 
-.course-title,
+.course-title {
+    font-size : 2.34375rem;
+    font-weight: bold;
+    color: #272627 !important;
+}
+
 .page-title {
-    color: #0071da !important;
+    font-size : 1.5rem !important; /* stylelint-disable-line declaration-no-important */
+    color: #272627 !important; /* stylelint-disable-line declaration-no-important */
+}
+
+.subsection-title {
+    font-size : 1.25rem !important; /* stylelint-disable-line declaration-no-important */
+    font-weight: 600;
+    color: #272627 !important; /* stylelint-disable-line declaration-no-important */
 }
 
 .page-instructions {
@@ -413,6 +464,8 @@ div[id^="course_learning_objectives_subcontainer_"] {
     background-color: #0071da !important; /* stylelint-disable-line declaration-no-important */
     color: white;
     border-bottom: none; /* stylelint-disable-line declaration-no-important */
+    font-size: 1.1em;
+    font-weight: 600
 }
 
 .accordion-header a{
@@ -464,6 +517,8 @@ div[id^="course_learning_objectives_subcontainer_"] {
 .add-container-text {
     background-color: white;
     border-radius: 10px;
+    font-size: 1.1em;
+    font-weight: 600
 }
 
 .row-container {

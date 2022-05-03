@@ -2,8 +2,13 @@ import {initModules} from "./moduleHelper";
 import {initObjectives} from "./objectiveHelper";
 import {fillFormObjectives} from "./objectiveHelper";
 import {fillFormModules} from "./moduleHelper";
-import {appendAnchorToForm, formatEditorAndFileManager} from "./utils";
+import {
+    appendAnchorToForm,
+    appendStyleToAnchorMenuSection,
+    formatEditorAndFileManager
+} from "./utils";
 import {fillFormEvaluations, initEvaluations} from "./evaluationHelper";
+import {initCourse} from "./courseHelper";
 
 /**
  *
@@ -15,13 +20,19 @@ function handleInit() {
     let anchor = window.location.href.includes("#") ?
         window.location.href.substring(window.location.href.lastIndexOf('#') + 1) : 'displayable-form-informations-container';
     if (page.includes('course')) {
-        appendAnchorToForm();
+        appendAnchorToForm(anchor);
         if (anchor === 'displayable-form-objectives-container') {
             initObjectives();
+            appendStyleToAnchorMenuSection('item-teachingobjectives');
         } else if (anchor === 'displayable-form-sections-container') {
             initModules();
+            appendStyleToAnchorMenuSection('item-coursesections');
         } else if (anchor === 'displayable-form-evaluations-container') {
             initEvaluations();
+            appendStyleToAnchorMenuSection('item-learningevaluations');
+        } else {
+            initCourse();
+            appendStyleToAnchorMenuSection('item-generalinformations');
         }
     }
 }
@@ -69,6 +80,7 @@ function handleFillForms(params) {
  */
 export function init() {
     handleInit();
+    // getAndSetScrollPosition();
     window.addEventListener('hashchange', function() {
         handleInit();
     });

@@ -4,7 +4,7 @@ use format_udehauthoring\utils;
 
 require_once('../../../../config.php');
 
-global $DB, $OUTPUT, $PAGE;
+global $DB, $OUTPUT, $PAGE, $ME;
 
 $PAGE->requires->css('/course/format/udehauthoring/authoring_tool.css');
 
@@ -55,7 +55,9 @@ if ($data = $form->get_data()) {
 
 echo $OUTPUT->header();
 
-echo \format_udehauthoring\utils::breadCrumb($courseplan->title);
+$PAGE->requires->js_call_amd('format_udehauthoring/notificationHelper', 'initNotification');
+
+echo \format_udehauthoring\utils::breadCrumb($courseplan);
 
 $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'exportCourse', array($courseplan->courseid));
 $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'publishCoursePlan', array(array($courseplan->id, $courseplan->courseid)));

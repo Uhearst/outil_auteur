@@ -44,7 +44,6 @@ class learningobjective_plan
                 $j = $j + 1;
             }
             $j = 0;
-            $learningobjectiveplanArray = [];
             $i = $i + 1;
         }
 
@@ -97,6 +96,28 @@ class learningobjective_plan
 
         }
         return $learningobjectiveplan;
+    }
+
+    /**
+     * Instantiate an object by querying the database with the section plan ID. An error is raised if no such section
+     * plan exists.
+     * @param $id
+     * @return section_plan
+     * @throws \dml_exception
+     */
+    public static function get_associated_learning_obj_indexes_and_title_by_id($id) {
+        global $DB;
+
+        $record = $DB->get_record('udehauthoring_learning_obj', ['id' => $id], '*', MUST_EXIST);
+
+        $learningobjectiveplan = new self();
+        foreach($learningobjectiveplan as $key => $_) {
+            $learningobjectiveplan->$key = $record->$key;
+
+        }
+        $relatedteachingobjective = teachingobjective_plan::instance_by_id($learningobjectiveplan->audehteachingobjectiveid);
+        $teachingobjectives = teachingobjective_plan::instance_all_by_course_plan_id($relatedteachingobjective->audehcourseid);
+
     }
 
     public function save() {

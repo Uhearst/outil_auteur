@@ -81,13 +81,13 @@ class redact_section extends \moodleform
         $mform->setType('section_comments', PARAM_TEXT);
 
         $mform->addElement('filemanager', 'section_vignette', get_string('sectionimage', 'format_udehauthoring'), null,
-            array('maxfiles' => 1));
+            array('subdirs' => false, 'maxfiles' => 1, 'accepted_types' => array('jpeg', 'jpg', 'png')));
 
         $mform->addElement('editor', 'section_introduction_text', get_string('sectionintroductiontext', 'format_udehauthoring'), ['class'=>'listable-editor', 'rows'=>'4']);
         $mform->setType('section_introduction_text', PARAM_RAW);
 
         $mform->addElement('filemanager', 'section_introduction', get_string('sectionintroduction', 'format_udehauthoring'), null,
-            array('maxfiles' => 1));
+            array());
 
         $this->handleHelpButtons(array(
             ['sectionimage', 'section_vignette'],

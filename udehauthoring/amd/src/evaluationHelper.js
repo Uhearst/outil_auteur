@@ -1,5 +1,6 @@
-import {initTinyMce, prepareActionButton, removeTags, removeTinyMce} from "./utils";
+import {handleNewAccordionElement, initTinyMce, prepareAccordions, prepareActionButton, removeTags, removeTinyMce} from "./utils";
 import {dictionnary} from "./language/format_udehauthoring_fr";
+import {validateEvaluationForm} from "./validator/evaluationValidator";
 
 let counterEvaluations = 0;
 let modules = [];
@@ -13,9 +14,9 @@ class Module {
 }
 
 /**
- *
+ * @param {boolean} fromBtnClick
  */
-function addEvaluation() {
+function addEvaluation(fromBtnClick) {
     let x = buildEvaluation();
     let container = document.getElementById('displayable-form-evaluations-container');
     container.insertBefore(x, document.getElementById('evaluation-add-container'));
@@ -24,6 +25,10 @@ function addEvaluation() {
     initTinyMce('id_evaluation_title_' + counterEvaluations, 'superscript subscript | undo redo');
     initTinyMce('id_evaluation_description_' + counterEvaluations,
         'bold italic | numlist bullist | underline strikethrough superscript subscript | undo redo');
+    getTooltips(counterEvaluations);
+    if (fromBtnClick) {
+        handleNewAccordionElement(x);
+    }
 }
 
 /**
@@ -110,14 +115,14 @@ function buildEvaluationContent() {
     let title = buildEditorContainer('evaluation_title', dictionnary.evaluationTitle);
     let description = buildEditorContainer('evaluation_description', dictionnary.evaluationDescription);
     let weight = buildInputContainer('evaluation_weight', dictionnary.evaluationWeight);
-    let learningObjectives = buildCheckboxContainer('evaluation_learning_objectives',
+    let learningObjectivesList = buildCheckboxContainer('evaluation_learning_objectives',
         dictionnary.associatedLearningObjective);
     let module = buildSelectContainer();
 
     contentContainer.appendChild(title);
     contentContainer.appendChild(description);
     contentContainer.appendChild(weight);
-    contentContainer.appendChild(learningObjectives);
+    contentContainer.appendChild(learningObjectivesList);
     contentContainer.appendChild(module);
     collapseDiv.appendChild(contentContainer);
 
@@ -202,20 +207,31 @@ function buildInputContainer(id, labelText) {
  */
 function buildCheckboxContainer(id, labelText) {
     let fieldContainer = document.createElement("div");
-    let labelField = document.createElement("p");
+    let titleContainer = document.createElement("div");
+    let labelField = document.createElement("label");
 
     fieldContainer.setAttribute('id', 'fitem_id_' + id + '_' + counterEvaluations);
-    labelField.innerHTML = labelText;
-    fieldContainer.appendChild(labelField);
 
-    learningObjectives.forEach(parent => {
+    titleContainer.setAttribute('id', 'evaluation_learning_objectives_title_' + counterEvaluations);
+    titleContainer.setAttribute('class', 'd-flex');
+
+    labelField.setAttribute('for', 'evaluation_learning_objectives_title_' + counterEvaluations);
+    labelField.setAttribute('class', 'd-inline word-break ml-3 eval-obj-title');
+    labelField.innerHTML = labelText;
+
+    titleContainer.appendChild(labelField);
+    fieldContainer.appendChild(titleContainer);
+
+    waitForEvaluations();
+
+    learningObjectives.forEach(function(parent, index) {
         let element = null;
         if(Array.isArray(parent)) {
             element = parent;
         } else {
             element = parent.learningobjectives;
         }
-        element.forEach(obj => {
+        element.forEach(function(obj, subIndex) {
             let labelContainer = document.createElement("div");
             let subContainer = document.createElement("div");
             let checkBoxContainer = document.createElement("div");
@@ -232,19 +248,17 @@ function buildCheckboxContainer(id, labelText) {
             checkBoxSubContainer.setAttribute('class', 'form-check d-flex');
 
             hiddenCheckbox.setAttribute('type', 'hidden');
-            // eslint-disable-next-line max-len
             hiddenCheckbox.setAttribute('name', id + '_' + counterEvaluations + '[' + obj.id + ']');
             hiddenCheckbox.setAttribute('value', '0');
 
             checkbox.setAttribute('type', 'checkbox');
             checkbox.setAttribute('class', 'form-check-input ');
-            // eslint-disable-next-line max-len
             checkbox.setAttribute('name', id + '_' + counterEvaluations + '[' + obj.id + ']');
             checkbox.setAttribute('id', 'id_' + id + '_' + counterEvaluations + '_' + obj.id);
             checkbox.setAttribute('value', '1');
 
             labelCheckbox.setAttribute('for', 'id_' + id + '_' + counterEvaluations);
-            labelCheckbox.innerHTML = removeTags(obj.learningobjective);
+            labelCheckbox.innerHTML = (index + 1) + '.' + (subIndex + 1) + ' - ' + removeTags(obj.learningobjective);
 
             checkBoxSubContainer.appendChild(hiddenCheckbox);
             checkBoxSubContainer.appendChild(checkbox);
@@ -393,8 +407,7 @@ function updateAddEvaluationButton() {
 function updateExistingEvaluations(index) {
     let evaluations = document.querySelectorAll('[id^="row_course_evaluation_container_"]');
     evaluations.forEach(evaluation => {
-        if (evaluation.id.charAt(evaluation.id.length - 1) > index) {
-
+        if (evaluation.id.substring(evaluation.id.lastIndexOf('_') + 1) > index) {
             let currentIndex = evaluation.id.charAt(evaluation.id.length - 1);
             evaluation.setAttribute('id', 'row_course_evaluation_container_' + (currentIndex - 1));
             let header = evaluation.querySelector('.accordion-header');
@@ -443,18 +456,60 @@ function fillFormCommonPart(evaluation, index) {
     weight.value = evaluation.weight;
 
     evaluation.learningobjectiveids.forEach(element=> {
-        // eslint-disable-next-line max-len
-        let learningObjectiveElement = document.getElementById('id_evaluation_learning_objectives_' + index + '_' + element.audehlearningobjectiveid);
-        learningObjectiveElement.checked = true;
+        let learningObjectiveElement = document
+            .getElementById('id_evaluation_learning_objectives_' + index + '_' + element.audehlearningobjectiveid);
+        if(learningObjectiveElement) {
+            learningObjectiveElement.checked = true;
+        }
     });
 
     let module = document.getElementById('id_evaluation_module_' + index);
-    if(evaluation.audehsectionid == 0) {
-        module.value = null;
-    } else {
-        module.value = evaluation.audehsectionid;
-    }
+    module.value = evaluation.audehsectionid;
+}
 
+/**
+ * @param {int} index
+ */
+function getTooltips(index) {
+    const titleContainer = document.getElementById('fitem_id_evaluation_title_0');
+    const descriptionContainer = document.getElementById('fitem_id_evaluation_description_0');
+    const weightContainer = document.getElementById('fitem_id_evaluation_weight_0');
+    const evaluationObjContainer = document.getElementById('fitem_id_evaluation_learning_objectives_0');
+    const evaluationModuleContainer = document.getElementById('fitem_id_evaluation_module_0');
+
+    const titleToolTip = titleContainer.firstElementChild.children[1];
+    const descriptionToolTip = descriptionContainer.firstElementChild.children[1];
+    const weightToolTip = weightContainer.firstElementChild.children[1];
+    const evaluationObjToolTip = evaluationObjContainer.firstElementChild.children[1];
+    const evaluationModuleToolTip = evaluationModuleContainer.firstElementChild.children[1];
+
+    let titleToFillContainer = document.getElementById('fitem_id_evaluation_title_' + index);
+    titleToFillContainer.firstElementChild.appendChild(titleToolTip.cloneNode(true));
+
+    let descriptionToFillContainer = document.getElementById('fitem_id_evaluation_description_' + index);
+    descriptionToFillContainer.firstElementChild.appendChild(descriptionToolTip.cloneNode(true));
+
+    let weightToFillContainer = document.getElementById('fitem_id_evaluation_weight_' + index);
+    weightToFillContainer.firstElementChild.appendChild(weightToolTip.cloneNode(true));
+
+    let evaluationObjToFillContainer = document.getElementById('fitem_id_evaluation_learning_objectives_' + index);
+    evaluationObjToFillContainer.firstElementChild.appendChild(evaluationObjToolTip.cloneNode(true));
+
+    let evaluationModuleToFillContainer = document.getElementById('fitem_id_evaluation_module_' + index);
+    evaluationModuleToFillContainer.firstElementChild.appendChild(evaluationModuleToolTip.cloneNode(true));
+}
+
+/**
+ *
+ */
+function placeLearningObjectivesTooltip() {
+    let initialContainer = document.getElementById('fitem_id_evaluation_learning_objectives_0');
+    let rows = initialContainer.querySelectorAll('.form-group');
+    let tooltipContainer = rows[rows.length - 1].children[1].firstElementChild.getElementsByTagName('div');
+    if (tooltipContainer[0]) {
+        let headerContainer = document.getElementById('evaluation_learning_objectives_title_0');
+        headerContainer.appendChild(tooltipContainer[0]);
+    }
 }
 
 /**
@@ -494,7 +549,19 @@ function waitWithInterval(id, type, toAppend) {
 /**
  *
  */
+function waitForEvaluations() {
+    let timer = setInterval(function() {
+        if (learningObjectives !== []) {
+            clearInterval(timer);
+        }
+    }, 100);
+}
+
+/**
+ *
+ */
 export function initEvaluations() {
+    validateEvaluationForm();
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     window.$.ajax(
@@ -522,8 +589,7 @@ export function initEvaluations() {
             success: function(response) {
                 let parsedResponse = JSON.parse(response);
                 modules = parsedResponse.data;
-                new Module('Aucun', null);
-                modules.push(new Module('Aucun', null));
+                modules.push(new Module('Aucun', 0));
             },
             error: function() {
                 window.console.log('failure');
@@ -544,7 +610,7 @@ export function initEvaluations() {
             }
             if (element && element.id.includes('evaluation') && element.hidden === false) {
                 if (element.id.includes('remove')) {
-                    let id = element.id.charAt(element.id.length - 1);
+                    let id = element.id.substring(element.id.lastIndexOf('_') + 1);
                     removeEvaluation(id);
                     event.stopImmediatePropagation();
                 }
@@ -568,7 +634,7 @@ export function initEvaluations() {
                 element = event.target;
             }
             if (element && element.id.includes('evaluation') && element.hidden === false) {
-                addEvaluation();
+                addEvaluation(true);
             } else {
                 return;
             }
@@ -600,6 +666,8 @@ export function initEvaluations() {
         });
     }
     disableEvaluationDeleteButton();
+    prepareAccordions('row_course_evaluation_container_');
+    placeLearningObjectivesTooltip();
 }
 
 /**
@@ -608,8 +676,7 @@ export function initEvaluations() {
  */
 export function fillFormEvaluations(evaluations, moduleslist) {
     modules = moduleslist;
-    new Module('Aucun', null);
-    modules.push(new Module('Aucun', null));
+    modules.push(new Module('Aucun', 0));
     evaluations.forEach(function(evaluation, i) {
         if (i === 0) {
             waitWithInterval('id_evaluation_title_0editable', 0, evaluation.title);
@@ -620,7 +687,7 @@ export function fillFormEvaluations(evaluations, moduleslist) {
 
         } else {
             if (document.getElementById('id_evaluation_title_' + i) === null) {
-                addEvaluation();
+                addEvaluation(false);
             }
             let title = document.getElementById('id_evaluation_title_' + i);
             title.value = evaluation.title;
@@ -636,4 +703,5 @@ export function fillFormEvaluations(evaluations, moduleslist) {
         {type: 0, id: 'evaluation_0'},
         {type: 1, id: 'evaluation'}]);
     disableEvaluationDeleteButton();
+    prepareAccordions('row_course_evaluation_container_');
 }

@@ -1,12 +1,12 @@
-import {initTinyMce, prepareActionButton, removeTinyMce} from "./utils";
+import {handleNewAccordionElement, initTinyMce, prepareAccordions, prepareActionButton, removeTinyMce} from "./utils";
 import {dictionnary} from "./language/format_udehauthoring_fr";
 
 let counterModules = 0;
 
 /**
- *
+ * @param {boolean} fromBtnClick
  */
-function addModule() {
+function addModule(fromBtnClick) {
     let x = buildModule();
     let container = document.getElementById('displayable-form-sections-container');
     container.insertBefore(x, document.getElementById('section-add-container'));
@@ -16,6 +16,10 @@ function addModule() {
     initTinyMce('id_section_question_' + counterModules, 'superscript subscript | undo redo');
     initTinyMce('id_section_description_' + counterModules,
         'bold italic | numlist bullist | underline strikethrough superscript subscript | undo redo');
+    getTooltips(counterModules);
+    if (fromBtnClick) {
+        handleNewAccordionElement(x);
+    }
 }
 
 /**
@@ -229,7 +233,7 @@ function updateRemoveModuleButton() {
 function updateExistingModules(index) {
     let modules = document.querySelectorAll('[id^="row_course_module_container_"]');
     modules.forEach(module => {
-        if (module.id.charAt(module.id.length - 1) > index) {
+        if (module.id.substring(module.id.lastIndexOf('_') + 1) > index) {
             let currentIndex = module.id.charAt(module.id.length - 1);
             module.setAttribute('id', 'row_course_module_container_' + (currentIndex - 1));
             let header = module.querySelector('.accordion-header');
@@ -266,6 +270,28 @@ function updateEditorAndLabel(module, currentIndex, element, toolbarOptions) {
     editorTitle.setAttribute('id', 'id_section_' + element + '_' + (currentIndex - 1));
     editorTitle.setAttribute('name', 'section_' + element + '_' + (currentIndex - 1));
     initTinyMce('id_section_' + element + '_' + (currentIndex - 1), toolbarOptions);
+}
+
+/**
+ * @param {int} index
+ */
+function getTooltips(index) {
+    const titleContainer = document.getElementById('fitem_id_section_title_0');
+    const questionContainer = document.getElementById('fitem_id_section_question_0');
+    const descriptionContainer = document.getElementById('fitem_id_section_description_0');
+
+    const titleToolTip = titleContainer.firstElementChild.children[1];
+    const questionToolTip = questionContainer.firstElementChild.children[1];
+    const descriptionToolTip = descriptionContainer.firstElementChild.children[1];
+
+    let titleToFillContainer = document.getElementById('fitem_id_section_title_' + index);
+    titleToFillContainer.firstElementChild.appendChild(titleToolTip.cloneNode(true));
+
+    let questionToFillContainer = document.getElementById('fitem_id_section_question_' + index);
+    questionToFillContainer.firstElementChild.appendChild(questionToolTip.cloneNode(true));
+
+    let descriptionToFillContainer = document.getElementById('fitem_id_section_description_' + index);
+    descriptionToFillContainer.firstElementChild.appendChild(descriptionToolTip.cloneNode(true));
 }
 
 /**
@@ -322,7 +348,7 @@ export function initModules() {
                 }
                 if (element && element.id.includes('module') && element.hidden === false) {
                     if (element.id.includes('remove')) {
-                        let id = element.id.charAt(element.id.length - 1);
+                        let id = element.id.substring(element.id.lastIndexOf('_') + 1);
                         removeModule(id);
                         event.stopImmediatePropagation();
                     }
@@ -346,7 +372,7 @@ export function initModules() {
                 element = event.target;
             }
             if (element && element.id.includes('module') && element.hidden === false) {
-                addModule();
+                addModule(true);
             } else {
                 return;
             }
@@ -378,6 +404,7 @@ export function initModules() {
         });
     }
     disableModuleDeleteButton();
+    prepareAccordions('row_course_module_container_');
 }
 
 /**
@@ -396,8 +423,8 @@ export function fillFormModules(modules) {
             waitWithInterval('id_section_description_0', 1, module.description);
 
         } else {
-            if(document.getElementById('id_section_title_' + i) === null) {
-                addModule();
+            if (document.getElementById('id_section_title_' + i) === null) {
+                addModule(false);
             }
             let title = document.getElementById('id_section_title_' + i);
             title.innerHTML = module.title;
@@ -412,4 +439,5 @@ export function fillFormModules(modules) {
         {type: 0, id: 'module_0'},
         {type: 1, id: 'module'}]);
     disableModuleDeleteButton();
+    prepareAccordions('row_course_module_container_');
 }

@@ -16,7 +16,8 @@ class menu_node
     public static $TYPE_SYLLABUSPART = 2;
     public static $TYPE_MODULE = 3;
     public static $TYPE_SUBQUESTION = 4;
-    public static $TYPE_EVALUATIONS = 5;
+    public static $TYPE_EVALUATIONSLIST = 5;
+    public static $TYPE_EVALUATION = 6;
 
 
     public $url;
@@ -83,6 +84,7 @@ class menu_node
             );
         }
 
+        // Evaluations list page
         $idnumber = $target->make_cmidnumber($course_modinfo->get_course_id(), false, false, true);
 
         if(isset($cms[$idnumber])) {
@@ -109,6 +111,25 @@ class menu_node
                 $data->courseid,
                 $data->moduleindex,
                 $data->subquestionindex
+            );
+        }
+
+        // Evaluations
+        $evaluations_idnumbers = $target->filter_cmidnumbers(array_keys($cms), $course_modinfo->get_course_id(), '\d+', false, true);
+
+        foreach ($evaluations_idnumbers as $idnumber) {
+            $cm = $cms[$idnumber];
+
+            $data = $target->unpack_cmidnumber($idnumber);
+            $parent = $root->children[count($root->children) - 1];
+
+            new self(
+                (new \moodle_url("/mod/{$cm->modname}/view.php", ['id' => $cm->id]))->out(),
+                $parent,
+                $data->courseid,
+                $data->moduleindex,
+                $data->subquestionindex,
+                $data->isevaluations
             );
         }
 
@@ -162,7 +183,9 @@ class menu_node
             return self::$TYPE_ROOT;
 
         } else if($this->isevaluations) {
-            return self::$TYPE_EVALUATIONS;
+            return is_null($this->moduleindex) ?
+                self::$TYPE_EVALUATIONSLIST :
+                self::$TYPE_EVALUATION ;
 
         } else if(is_null($this->parent->parent)) {
             if (0 === $this->moduleindex) {

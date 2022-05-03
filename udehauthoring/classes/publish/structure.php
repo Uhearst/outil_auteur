@@ -19,7 +19,7 @@ use format_udehauthoring\utils;
 class structure
 {
     public static $CONTENT_PLACEHOLDER = 'NIL';
-    private static $NB_SYLLABUS_PAGES = 5;
+    private static $NB_SYLLABUS_PAGES = 7;
 
     private $course_plan;
     private $modpage_id;
@@ -40,18 +40,19 @@ class structure
      * @throws \moodle_exception
      */
     public function publish() {
-        $modinfo = get_fast_modinfo($this->course, -1);
+        $sections = $this->publish_course_sections();
 
+        $modinfo = get_fast_modinfo($this->course, -1);
         $cms = [];
         foreach ($modinfo->cms as $cm) {
             $cms[$cm->idnumber] = $cm;
         }
 
-        $sections = $this->publish_course_sections();
         $section_sequences = array_fill(0, count($sections), []);
         $this->publish_syllabus_pages($cms, $sections, $section_sequences);
         $this->publish_section_pages($cms, $sections, $section_sequences);
         $this->publish_subquestion_pages($cms, $sections, $section_sequences);
+        $this->publish_evaluation_pages($cms, $sections, $section_sequences);
         $this->publish_course_section_sequences($sections, $section_sequences);
     }
 
@@ -91,7 +92,7 @@ class structure
         $sections_offset = $this->target->get_sections_offset($this->course_plan->courseid);
         $existing_sections = $this->target->get_existing_sections($this->course_plan->courseid);
         $nb_existing_sections = count($existing_sections);
-        $nb_required_sections = count($this->course_plan->sections) + 1; // +1 for syllabus section
+        $nb_required_sections = count($this->course_plan->sections) + 2; // modules sections + syllabus section + evaluations section
 
         if ($nb_existing_sections < $nb_required_sections) {
             // create missing sections
@@ -183,16 +184,51 @@ class structure
             $section_sequences[$sectionindex][] = $cmid;
         }
 
+        foreach ($existing_cmidnumbers as $obsolete_cmidnumber) {
+            course_delete_module($cms[$obsolete_cmidnumber]->id);
+        }
+    }
+
+    private function publish_evaluation_pages($cms, $sections, &$section_sequences) {
+        global $DB;
+        $sectionindex =
+            count($this->course_plan->sections) + 1;
+
         // evaluations page
         $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, false, false, true);
         if (!isset($cms[$cmidnumber])) {
-            $modinfo = $this->add_page($sections[0]->section, $cmidnumber);
+            $modinfo = $this->add_page($sections[$sectionindex]->section, $cmidnumber);
             $cmid = $modinfo->coursemodule;
         } else {
-            $existing_cmidnumbers = array_diff($existing_cmidnumbers, [$cmidnumber]);
             $cmid = $cms[$cmidnumber]->id;
+            if ($cms[$cmidnumber]->section != $sections[$sectionindex]->id) {
+                $cmrecord = $DB->get_record('course_modules', ['id' => $cmid]);
+                $cmrecord->section = $sections[$sectionindex]->id;
+                $DB->update_record('course_modules', $cmrecord);
+            }
         }
-        $section_sequences[0][] = $cmid;
+        $section_sequences[$sectionindex][] = $cmid;
+
+        // evaluation pages
+        $existing_cmidnumbers = $this->target->filter_cmidnumbers(array_keys($cms), $this->course_plan->courseid, '([1-9]|\d{,2})', false, true);
+
+        foreach ($this->course_plan->evaluations as $ii => $evaluation) {
+            $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $ii, false, true);
+            if (!isset($cms[$cmidnumber])) {
+                $modinfo = $this->add_page($sections[$sectionindex]->section, $cmidnumber);
+                $cmid = $modinfo->coursemodule;
+            } else {
+                $existing_cmidnumbers = array_diff($existing_cmidnumbers, [$cmidnumber]);
+                $cmid = $cms[$cmidnumber]->id;
+                if ($cms[$cmidnumber]->section != $sections[$sectionindex]->id) {
+                    $cmrecord = $DB->get_record('course_modules', ['id' => $cmid]);
+                    $cmrecord->section = $sections[$sectionindex]->id;
+                    $DB->update_record('course_modules', $cmrecord);
+                }
+            }
+
+            $section_sequences[$sectionindex][] = $cmid;
+        }
 
         foreach ($existing_cmidnumbers as $obsolete_cmidnumber) {
             course_delete_module($cms[$obsolete_cmidnumber]->id);

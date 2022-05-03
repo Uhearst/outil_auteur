@@ -10,6 +10,7 @@ abstract class target
 {
     protected $idnumberprefix;
     protected $idnumbermodulepart = 'M';
+    protected $idnumberevalpart = 'E';
     protected $idnumbersubquestionpart = 'T';
 
     public static function get_target_by_cm($cm) {
@@ -33,10 +34,12 @@ abstract class target
     public function make_cmidnumber($courseid, $moduleindex=false, $subquestionindex=false, $isevaluations=false) {
         $idnumber = $this->idnumberprefix . $courseid;
         if ($isevaluations) {
-            return "{$idnumber}E";
+            $idnumber .= $this->idnumberevalpart;
+        } else {
+            $idnumber .= $this->idnumbermodulepart;
         }
         if (false !== $moduleindex && !is_null($moduleindex)) {
-            $idnumber .= $this->idnumbermodulepart . $moduleindex;
+            $idnumber .= $moduleindex;
         }
         if (false !== $subquestionindex && !is_null($subquestionindex)) {
             $idnumber .= $this->idnumbersubquestionpart . $subquestionindex;
@@ -45,7 +48,7 @@ abstract class target
     }
 
     public function unpack_cmidnumber($idnumber) {
-        $result = preg_match('/^' . $this->idnumberprefix . '(?P<courseid>\d+)(?P<isevaluations>E)?(M(?P<moduleindex>\d+))?(T(?P<subquestionindex>\d+))?/', $idnumber, $matches);
+        $result = preg_match('/^' . $this->idnumberprefix . '(?P<courseid>\d+)(?P<sectiontype>[EM])?(?P<moduleindex>\d+)?(T(?P<subquestionindex>\d+))?/', $idnumber, $matches);
 
         if (1 !== $result) {
             return false;
@@ -71,7 +74,7 @@ abstract class target
             $data->subquestionindex = null;
         }
 
-        $data->isevaluations = array_key_exists('isevaluations', $matches) && $matches['isevaluations'] === 'E';
+        $data->isevaluations = array_key_exists('sectiontype', $matches) && $matches['sectiontype'] === 'E';
 
         return $data;
     }
@@ -83,11 +86,14 @@ abstract class target
      * @param string $subquestionindex Regular expression fragment
      * @return array
      */
-    public function filter_cmidnumbers($idnumbers, $courseid, $moduleindex=false, $subquestionindex=false) {
+    public function filter_cmidnumbers($idnumbers, $courseid, $moduleindex=false, $subquestionindex=false, $isevaluations=false) {
         $regexp = '/^' . $this->idnumberprefix . $courseid;
 
         if (false !== $moduleindex) {
-            $regexp .= $this->idnumbermodulepart . $moduleindex;
+            $prefix = $isevaluations ?
+                $this->idnumberevalpart :
+                $this->idnumbermodulepart ;
+            $regexp .= $prefix . $moduleindex;
         }
 
         if(false !== $subquestionindex) {

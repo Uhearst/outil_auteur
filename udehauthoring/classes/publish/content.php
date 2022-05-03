@@ -35,6 +35,7 @@ class content
         $this->publish_syllabus_pages($cms);
         $this->publish_section_pages($cms);
         $this->publish_subquestion_pages($cms);
+        $this->publish_evaluation_pages($cms);
     }
 
     /**
@@ -57,10 +58,17 @@ class content
     }
 
     private function render_subquestion_preview($index, $subindex, $text, $modurl) {
+        $strindex = '';
+        if (!is_null($index)) {
+            $strindex = $index;
+            if (!is_null($subindex)) {
+                $strindex .= ".{$subindex}";
+            }
+        }
         return <<<EOD
                 <tr>
                     <td class="udeha-subquestion-index">
-                       {$index}.{$subindex}
+                       {$strindex}
                     </td>
                     <td class="udeha-subquestion-text">
                         {$text}
@@ -106,9 +114,13 @@ class content
         );
 
         $introductionfilehtml = utils::renderFileAreaHTML($context->id, 'format_udehauthoring', 'courseintroduction', 0);
+        $introductionfilehtml = empty($introductionfilehtml) ?
+            '' :
+            reset($introductionfilehtml);
+
         $course->summary = <<<EOD
             <div class='udeha-course-question'>{$this->course_plan->question}</div>
-            <div id="udeha-course-introduction" class="collapse">{$introductionfilehtml[0]}</div>
+            <div id="udeha-course-introduction" class="collapse">{$introductionfilehtml}</div>
         EOD;
 
         $DB->update_record('course', $course);
@@ -160,7 +172,7 @@ class content
                 $image_index = $ii % 3;
                 $vignettefilehtml = "<img src='../course/format/udehauthoring/assets/img-front/vignette-defaut-{$image_index}.png'>";
             } else {
-                $vignettefilehtml = $vignettefilehtml[0];
+                $vignettefilehtml = reset($vignettefilehtml);
             }
 
             $course_section_record->summary = $this->render_module_preview(
@@ -212,6 +224,8 @@ class content
         $this->publish_syllabus_toc($cms);
         $this->publish_syllabus_pdf($cms);
         $this->publish_syllabus_presentation($cms);
+        $this->publish_syllabus_desc($cms);
+        $this->publish_syllabus_objectives($cms);
         $this->publish_syllabus_place($cms);
         $this->publish_syllabus_modules($cms);
         $this->publish_syllabus_evaluations($cms);
@@ -234,6 +248,8 @@ class content
 
         $syllabusparts = [
             'presentation',
+            'coursedescription',
+            'teachingobjectives',
             'placeprog',
             'modulescontent',
             'evaluations',
@@ -315,10 +331,28 @@ class content
             $this->syllabus_content->get_presentation_content());
     }
 
-    private function publish_syllabus_place($cms) {
-        global $DB;
 
+    private function publish_syllabus_desc($cms) {
+        global $DB;
         $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 1);
+
+        $cminfo = $cms[$cmidnumber];
+        $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
+
+        if ($page->timemodified > $this->course_plan->timemodified && $page->content !== structure::$CONTENT_PLACEHOLDER) {
+            return;
+        }
+
+        $this->update_page(
+            $cminfo,
+            get_string('coursedescription', 'format_udehauthoring'),
+            $this->syllabus_content->get_desc_content());
+    }
+
+    private function publish_syllabus_objectives($cms) {
+        global $DB;
+        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 2);
+
         $cminfo = $cms[$cmidnumber];
         $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
 
@@ -336,6 +370,23 @@ class content
 
         $this->update_page(
             $cminfo,
+            get_string('teachingobjectives', 'format_udehauthoring'),
+            $this->syllabus_content->get_objectives_content());
+    }
+
+    private function publish_syllabus_place($cms) {
+        global $DB;
+
+        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 3);
+        $cminfo = $cms[$cmidnumber];
+        $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
+
+        if ($page->timemodified > $this->course_plan->timemodified && $page->content !== structure::$CONTENT_PLACEHOLDER) {
+            return;
+        }
+
+        $this->update_page(
+            $cminfo,
             get_string('placeprog', 'format_udehauthoring'),
             $this->syllabus_content->get_place_content());
     }
@@ -343,7 +394,7 @@ class content
     private function publish_syllabus_modules($cms) {
         global $DB;
 
-        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 2);
+        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 4);
         $cminfo = $cms[$cmidnumber];
         $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
 
@@ -362,7 +413,7 @@ class content
     private function publish_syllabus_evaluations($cms) {
         global $DB;
 
-        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 3);
+        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 5);
         $cminfo = $cms[$cmidnumber];
         $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
         $maxtimemodified = $this->maxtimemodified(...$this->course_plan->evaluations);
@@ -380,7 +431,7 @@ class content
     private function publish_syllabus_extra($cms) {
         global $DB;
 
-        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 4);
+        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, 6);
         $cminfo = $cms[$cmidnumber];
         $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
 
@@ -421,7 +472,7 @@ class content
             // intro media
 
             $introductionfilehtml = utils::renderFileAreaHTML($context_course->id, 'format_udehauthoring', 'sectionintroduction', $section->id);
-            $introductionfilehtml = 0 < count($introductionfilehtml) ? $introductionfilehtml[0] : '';
+            $introductionfilehtml = empty($introductionfilehtml) ? '' : reset($introductionfilehtml);
             $introductionfilehtml = "<div class='udeha-section-intro-media'>{$introductionfilehtml}</div>";
 
             //evaluations
@@ -429,7 +480,7 @@ class content
             $evaluations_html = '';
             foreach($this->course_plan->evaluations as $evaluation) {
                 if ($section->id === $evaluation->audehsectionid) {
-                    $evaltitle = strip_tags(format_text($evaluation->title), '<strong><em><sup><sub>');
+                    $evaltitle = strip_tags($evaluation->title, '<strong><em><sup><sub>');
                     $evaluations_html .= "<h3>{$evaltitle}</h3><div class='udeha-evaluation-description'>{$evaluation->description}</div>";
                 }
             }
@@ -482,24 +533,6 @@ class content
             $this->update_page($cminfo, $section->title, $content);
         }
 
-        // evaluations page
-        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, false, false, true);
-        $cminfo = $cms[$cmidnumber];
-        $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
-        $maxtimemodified = $this->maxtimemodified(...$this->course_plan->evaluations);
-
-        if ($page->timemodified < $maxtimemodified || $page->content === structure::$CONTENT_PLACEHOLDER) {
-            $evaluations_html = '';
-            foreach ($this->course_plan->evaluations as $evaluation) {
-                $evaltitle = strip_tags(format_text($evaluation->title), '<strong><em><sup><sub>');
-                $evaluations_html .= "<h3>{$evaltitle}</h3><div class='udeha-evaluation-description'>{$evaluation->description}</div>";
-            }
-            if (empty($evaluations_html)) {
-                $evaluations_html = get_string('noeval', 'format_udehauthoring');
-            }
-
-            $this->update_page($cminfo, get_string('titleevaluations', 'format_udehauthoring'), $evaluations_html);
-        }
     }
 
     private function publish_subquestion_pages($cms) {
@@ -508,20 +541,45 @@ class content
         foreach ($this->course_plan->sections as $ii => $section) {
             $sectionindex = $ii + 1;
             foreach ($section->subquestions as $subindex => $subquestion) {
+
+                // files first
                 $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $sectionindex,  $subindex);
                 $cminfo = $cms[$cmidnumber];
+
+                $fileareas = [];
+
                 $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
 
                 $context_module = \context_module::instance($cminfo->id);
                 $context_course = \context_course::instance($this->course_plan->courseid);
-                utils::copyToFilearea(
-                    $context_course->id, 'format_udehauthoring', 'subquestionvignette', $subquestion->id,
-                    $context_module->id, 'mod_page', 'content', 0
-                );
+
+                $fileareas[] = (object)[
+                    'folder' => 'subquestionvignette',
+                    'contextid' => $context_course->id,
+                    'component' => 'format_udehauthoring',
+                    'filearea' => 'subquestionvignette',
+                    'itemid' => $subquestion->id
+                ];
+
+                foreach($subquestion->resources as $resource) {
+                    $fileareas[] = (object)[
+                        'folder' => 'resourcevignette' . $resource->id,
+                        'contextid' => $context_course->id,
+                        'component' => 'format_udehauthoring',
+                        'filearea' => 'resourcevignette',
+                        'itemid' => $resource->id
+                    ];
+                }
+
+                $haschanged = utils::copyToFileareaMultiple($fileareas, $context_module->id, 'mod_page', 'content', 0);
+
+                $fileshtml = utils::renderFileAreaHTML($context_module->id, 'mod_page', 'content', 0);
+
+                // do html now
 
                 $maxtimemodified = $this->maxtimemodified($subquestion, ...$subquestion->explorations, ...$subquestion->resources);
 
-                if ($page->timemodified > $maxtimemodified && $page->content !== structure::$CONTENT_PLACEHOLDER) {
+                if (!$haschanged && $page->timemodified > $maxtimemodified && $page->content !== structure::$CONTENT_PLACEHOLDER) {
                     continue;
                 }
 
@@ -594,23 +652,37 @@ class content
 
                 $resources_html = '';
                 foreach($subquestion->resources as $resource) {
+
+                    $vignettefilehtml = array_filter($fileshtml, function($filepath) use ($resource) {
+                        return 0 === strpos($filepath, "/resourcevignette{$resource->id}/");
+                    }, ARRAY_FILTER_USE_KEY);
+
+                    $vignettehtml = empty($vignettefilehtml) ?
+                        '' :
+                        reset($vignettefilehtml);
+
                     $resources_html .= <<<EOD
                         <tr class="udeha-resource">
-                            <td class="udeha-resource-vignette"></td>
+                            <td class="udeha-resource-vignette">{$vignettehtml}</td>
                             <td class="udeha-resource-link"><a href="{$resource->link}">{$resource->title}</a></td>
                         </tr>
                     EOD;
                 }
+
                 $str_titleresources = get_string('titleresources', 'format_udehauthoring');
                 $resources_html = <<<EOD
                     <h3>{$str_titleresources}</h3>
                     <table class='udeha-resources'>{$resources_html}</table>
                 EOD;
 
-                $vignettefilehtml = utils::renderFileAreaHTML($context_course->id, 'format_udehauthoring', 'subquestionvignette', $subquestion->id);
-                $vignettehtml = 0 < count($vignettefilehtml) ?
-                    $vignettefilehtml[0] :
-                    '';
+                $vignettefilehtml = array_filter($fileshtml, function($filepath) {
+                    return 0 === strpos($filepath, '/subquestionvignette/');
+                }, ARRAY_FILTER_USE_KEY);
+
+                $vignettehtml = empty($vignettefilehtml) ?
+                    '' :
+                    reset($vignettefilehtml) ;
+
                 $vignettehtml = "<div class='udeha-subquestion-vignette'>{$vignettehtml}</div>";
 
                 $str_titlesubquestion = get_string('titlesubquestionenonce', 'format_udehauthoring', (object)['index' => $ii+1, 'subindex' => $subindex+1]);
@@ -623,8 +695,8 @@ class content
                     $explorations_html = get_string('noactivities', 'format_udehauthoring');
                 }
 
-                $content = $enoncehtml .
-                    $vignettehtml .
+                $content = $vignettehtml .
+                    $enoncehtml .
                     '<hr class="udeha-separator udeha-explorations-separator">' .
                     $explorations_html .
                     '<hr class="udeha-separator udeha-resources-separator">' .
@@ -633,6 +705,44 @@ class content
                 $this->update_page($cminfo, $str_titlesubquestion, $content);
             }
         }
+    }
+
+    private function publish_evaluation_pages($cms) {
+        global $DB;
+
+        // evaluations page
+        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, false, false, true);
+        $cminfo = $cms[$cmidnumber];
+        $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
+        $maxtimemodified = $this->maxtimemodified(...$this->course_plan->evaluations);
+
+        if ($page->timemodified < $maxtimemodified || $page->content === structure::$CONTENT_PLACEHOLDER) {
+            $parts_html = '';
+            foreach ($this->course_plan->evaluations as $ii => $evaluation) {
+                $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $ii, false, true);
+                $evaltitle = strip_tags($evaluation->title, '<strong><em><sup><sub>');
+                $parts_html .= $this->render_subquestion_preview($ii + 1, null, $evaltitle, $cms[$cmidnumber]->url);
+            }
+            if (empty($parts_html)) {
+                $parts_html = get_string('noeval', 'format_udehauthoring');
+            }
+
+            $content = "<table class='udeha-subquestions'>{$parts_html}</table>";
+
+            $this->update_page($cminfo, get_string('titleevaluations', 'format_udehauthoring'), $content);
+        }
+
+        // evaluation pages
+        foreach ($this->course_plan->evaluations as $ii => $evaluation) {
+            $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $ii, false, true);
+            $cminfo = $cms[$cmidnumber];
+            $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
+            if ($page->timemodified < $evaluation->timemodified || $page->content === structure::$CONTENT_PLACEHOLDER) {
+                $evaltitle = strip_tags($evaluation->title, '<strong><em><sup><sub>');
+                $this->update_page($cminfo, $evaltitle, $evaluation->description);
+            }
+        }
+
     }
 
 }

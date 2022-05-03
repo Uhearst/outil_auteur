@@ -20,6 +20,7 @@ export const dictionnary =
             evaluationWeight: "Pondération",
             associatedLearningObjective: "Objectif d'apprentissage visé de l'évaluation",
             associatedModule: "Module associé",
+            recommendedFormat: "Format recommandé: ",
 
             // Trames
             trame: "Trame ",

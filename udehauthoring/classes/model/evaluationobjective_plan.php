@@ -9,6 +9,7 @@ use format_udehauthoring\utils;
 class evaluationobjective_plan
 {
     public $id = null;
+    public $audehcourseid = null;
     public $audehevaluationid = null;
     public $audehlearningobjectiveid = null;
     public $timemodified = null;
@@ -17,6 +18,35 @@ class evaluationobjective_plan
      * Returns an array of all evaluationobjective_plan included in the evaluation_plan with the specified ID.
      *
      * @param $audehcourseid
+     * @return array
+     * @throws \dml_exception
+     */
+    public static function instance_all_by_course_plan_id($audehcourseid) {
+        global $DB;
+
+        $records = $DB->get_records('udehauthoring_evaluation_obj', ['audehcourseid' => $audehcourseid]);
+
+        $evaluationobjplans = [];
+
+        foreach ($records as $record) {
+            $evaluationobjplan = new self();
+            $evaluationobjplan->id = $record->id;
+            $evaluationobjplan->audehcourseid = $record->audehcourseid;
+            $evaluationobjplan->audehevaluationid = $record->audehevaluationid;
+            $evaluationobjplan->audehlearningobjectiveid = $record->audehlearningobjectiveid;
+            $evaluationobjplan->timemodified = $record->timemodified;
+
+            $evaluationobjplans[] = $evaluationobjplan;
+        }
+
+        return $evaluationobjplans;
+
+    }
+
+    /**
+     * Returns an array of all evaluationobjective_plan included in the evaluation_plan with the specified ID.
+     *
+     * @param $audehevaluationid
      * @return array
      * @throws \dml_exception
      */
@@ -30,6 +60,7 @@ class evaluationobjective_plan
         foreach ($records as $record) {
             $evaluationobjplan = new self();
             $evaluationobjplan->id = $record->id;
+            $evaluationobjplan->audehcourseid = $record->audehcourseid;
             $evaluationobjplan->audehevaluationid = $record->audehevaluationid;
             $evaluationobjplan->audehlearningobjectiveid = $record->audehlearningobjectiveid;
             $evaluationobjplan->timemodified = $record->timemodified;

@@ -124,6 +124,19 @@ class section_plan
     }
 
     /**
+     * Instantiate an object by querying the database with the section plan ID. An error is raised if no such section
+     * plan exists.
+     * @param $id
+     * @return section_plan
+     * @throws \dml_exception
+     */
+    public static function get_section_title_by_id($id) {
+        global $DB;
+
+        return $DB->get_record('udehauthoring_section', ['id' => $id], 'title', MUST_EXIST);
+    }
+
+    /**
      * HTML rending for listing modules in the course main page. Used by the syllabus as well.
      *
      * @param $vignettefilehtml

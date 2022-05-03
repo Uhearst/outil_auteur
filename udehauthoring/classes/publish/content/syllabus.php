@@ -3,7 +3,15 @@
 namespace format_udehauthoring\publish\content;
 
 use format_udehauthoring\model\course_plan;
+use Dompdf\Dompdf;
+use format_udehauthoring\model\unit_config;
+use format_udehauthoring\model\unit_plan;
 
+require_once $CFG->dirroot . '/course/format/udehauthoring/dompdf/autoload.inc.php';
+
+/**
+ * Produces the syllabus in HTML and PDF format.
+ */
 class syllabus
 {
     private $courseplan;
@@ -16,60 +24,91 @@ class syllabus
 
     public function get_presentation_content() {
         if (!isset($this->content->presentation)) {
-            $unittitle = course_plan::get_teaching_units()[$this->courseplan->unit];
+            $units = unit_plan::instance_all_by_course_plan_id($this->courseplan->id);
+
+            $strblock = get_string('syllabusblock', 'format_udehauthoring', $this->courseplan->bloc);
+
+            $lblteachername = get_string('syllabusteachername', 'format_udehauthoring');
+            $lblemail       = get_string('syllabusemail', 'format_udehauthoring');
+            $lblphone       = get_string('syllabusphone', 'format_udehauthoring');
+            $lblmobile      = get_string('syllabusmobile', 'format_udehauthoring');
+            $lblcontact     = get_string('syllabuscontact', 'format_udehauthoring');
+            $lblzoomteacher = get_string('syllabuszoomteacher', 'format_udehauthoring');
+            $lblzoomcourse  = get_string('syllabuszoomcourse', 'format_udehauthoring');
+
+            $loopResult = "";
+            foreach($units as $unit) {
+                $loopResult .= unit_config::getValueById($unit->audehunitid);
+            }
 
             $this->content->presentation = <<<EOD
-                <p>Nom du programme : {$unittitle}</p>
-                <br>
-                <h1>{$this->courseplan->title}</h1>
-                <br>
-                <h3>{$this->courseplan->code}</h3>
-                <br>
-                <h3>Bloc {$this->courseplan->bloc}</h3>
-                <br>
-                <p><strong>Professeur :</strong> {$this->courseplan->teachername}</p>
-                <p><strong>Courriel :</strong> {$this->courseplan->teacheremail}</p>
-                <p><strong>Téléphone :</strong> {$this->courseplan->teacherphone}</p>
-                <p><strong>Cellulaire :</strong> {$this->courseplan->teachercellphone}</p>
-                <p><strong>Horaires de contact :</strong> {$this->courseplan->teachercontacthours}</p>
-                <p><strong>Lien Zoom personnel du professeur :</strong> {$this->courseplan->teacherzoomlink}</p>
-                <p><strong>Lien Zoom du cours :</strong> {$this->courseplan->coursezoomlink}</p>
+                <hr>
+                <div class="udeha-syllabus-header">
+                    <div>{$this->courseplan->code}</div>
+                    <h1>{$this->courseplan->title}</h1>
+                    <div>{$loopResult}<br>{$strblock}</div>
+                </div>
+                <hr>
+                <div class="udeha-teacher-info">
+                <div><span>{$lblteachername}</span> {$this->courseplan->teachername}</div>
+                <div><span>{$lblemail}</span> <a href="mailto:{$this->courseplan->teacheremail}">{$this->courseplan->teacheremail}</a></div>
+                <div><span>{$lblphone}</span> {$this->courseplan->teacherphone}</div>
+                <div><span>{$lblmobile}</span> {$this->courseplan->teachercellphone}</div>
+                <div><span>{$lblcontact}</span> {$this->courseplan->teachercontacthours}</div>
+                <div><span>{$lblzoomteacher}</span> <a href="{$this->courseplan->teacherzoomlink}">{$this->courseplan->teacherzoomlink}</a></div>
+                <div><span>{$lblzoomcourse}</span> <a href="{$this->courseplan->coursezoomlink}">{$this->courseplan->coursezoomlink}</a></div>
+                </div>
             EOD;
         }
 
         return $this->content->presentation;
     }
 
-    public function get_place_content() {
-        if (!isset($this->content->place)) {
-            $teachingobjectiveslist = '';
-            $learingobjectiveslist = '';
-            foreach($this->courseplan->teachingobjectives as $teachingobjective) {
-                $teachingobjectiveslist .= "<li>{$teachingobjective->teachingobjective}</li>";
-                foreach($teachingobjective->learningobjectives as $learningobjective) {
-                    $learingobjectiveslist .= "<li>{$learningobjective->learningobjective}</li>";
+    public function get_desc_content() {
+        if (!isset($this->content->desc)) {
+            $this->content->desc = "<p>{$this->courseplan->description}</p>";
+        }
+        return $this->content->desc;
+    }
+
+    public function get_objectives_content() {
+        if (!isset($this->content->objectives)) {
+            $lblteachingobjective  = get_string('teachingobjective', 'format_udehauthoring');
+            $lbllearningobjectives = get_string('learningobjectivestarget', 'format_udehauthoring');
+            $bytheend = get_string('bytheendstudentable', 'format_udehauthoring');
+
+            $content = '';
+            foreach($this->courseplan->teachingobjectives as $ii => $teachingobjective) {
+                if (0 !== $ii) {
+                    $content .= '<hr>';
                 }
+                $index = $ii + 1;
+                $totitle = strip_tags($teachingobjective->teachingobjective, '<strong><em><sup><sub>');
+
+
+                $content .= "<h4>{$lblteachingobjective} {$index}</h4>";
+                $content .= "<p>{$totitle}</p>";
+                $content .= "<div class='udeha-syllabus-lo'>";
+                $content .= "<h5>{$lbllearningobjectives}</h5>";
+                $content .= "<p>{$bytheend}</p>";
+                $content .= "<ol>";
+                foreach($teachingobjective->learningobjectives as $learningobjective) {
+                    $lotitle = strip_tags($learningobjective->learningobjective, '<strong><em><sup><sub>');
+                    $content .= "<li>{$lotitle}</li>";
+                }
+                $content .= "</ol>";
+                $content .= "</div>";
             }
 
-            $this->content->place =
-                <<<EOD
-            <div>
-                <h3>Description du cours dans l’annuaire</h3>
-                <p>{$this->courseplan->description}</p>
-                <br>
-                <h3>Objectifs d’enseignement</h3>
-                <p>Les objectifs d’enseignement du cours sont :</p>
-                <ul>{$teachingobjectiveslist}</ul>
-                <br>
-                <h3>Objectifs d’apprentissage visés</h3>
-                <p>À la fin de ce cours, l’étudiante ou l’étudiant sera en mesure :</p>
-                <ul>{$learingobjectiveslist}</ul>
-                <br>
-                <h3>Place du cours dans la programmation</h3>
-                <p>{$this->courseplan->place}</p>
-                <br>
-            </div>
-            EOD;
+            $this->content->objectives = $content;
+        }
+
+        return $this->content->objectives;
+    }
+
+    public function get_place_content() {
+        if (!isset($this->content->place)) {
+            $this->content->place = $this->courseplan->place;
         }
 
         return $this->content->place;
@@ -79,19 +118,32 @@ class syllabus
 
         if (!isset($this->content->modules)) {
             $sectionslist = '';
-            foreach($this->courseplan->sections as $section) {
-                $sectionslist = <<<EOD
-                {$sectionslist}
-                <tr>
-                    <th>{$section->title}</th>
-                </tr>
-                <tr>
-                    <td>{$section->description}</td>
-                </tr>
-            EOD;
+            foreach($this->courseplan->sections as $ii => $section) {
+                if (0 !== $ii) {
+                    $sectionslist .= '<hr>';
+                }
+                $sectiontitle = get_string('titlemodule', 'format_udehauthoring', (object)[
+                    'index' => $ii + 1,
+                    'title' => strip_tags($section->title, '<strong><em><sup><sub>')
+                ]);
+                $sectionslist .= <<<EOD
+                    <h4>{$sectiontitle}</h4>
+                    <div>{$section->description}</div>
+                EOD;
+                $sectionevaluations = array_filter($this->courseplan->evaluations, function($evaluation) use ($section) {
+                    return $evaluation->audehsectionid == $section->id;
+                });
+                if (!empty($sectionevaluations)) {
+                    $evaluation = current($sectionevaluations);
+                    $evaluationtitle = get_string('titleevaluationsection', 'format_udehauthoring', $ii + 1);
+                    $sectionslist .= <<<EOD
+                        <h5 class="udeha-title-section-evaluation">{$evaluationtitle}</h5>
+                        <div>{$evaluation->title}</div>
+                    EOD;
+                }
             }
 
-            $this->content->modules = "<table>{$sectionslist}</table>";
+            $this->content->modules = "{$sectionslist}";
         }
 
         return $this->content->modules;
@@ -104,19 +156,21 @@ class syllabus
                 $evaluationslist = <<<EOD
                     {$evaluationslist}
                     <tr>
-                        <td>{$evaluation->title}</td>
-                        <td>{$evaluation->weight}%</td>
+                        <td class="col-title">{$evaluation->title}</td>
+                        <td class="col-grading">{$evaluation->weight}%</td>
                     </tr>
                 EOD;
             }
-
+            $evaluationsintro = get_string('evaluationsintro', 'format_udehauthoring');
+            $evalgrading = get_string('evalgrading', 'format_udehauthoring');
+            $evalworks = get_string('evalworks', 'format_udehauthoring');
             $this->content->evaluations =
                 <<<EOD
+                    <p>{$evaluationsintro}</p>
+                    <br>
+                    <h4>{$evalgrading}</h4>
+                    <p>{$evalworks}</p>
                     <table class="table">
-                        <tr>
-                          <th>Tâches à effectuer</th>
-                          <th>Pondération</th>
-                        </tr>
                         {$evaluationslist}
                     </table>
                 EOD;
@@ -139,87 +193,85 @@ class syllabus
     }
 
     public function get_pdf_content() {
-        // create new PDF document
-        $pdf = new syllabus_pdf_generator(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        global $CFG;
 
-        // set document information
-        $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor($this->courseplan->teachername);
-        $pdf->SetTitle($this->courseplan->title);
+        // get header logo
+        $fs = get_file_storage();
+        $files = $fs->get_area_files(\context_system::instance()->id, 'core', 'syllabusheaderlogo');
 
-        // print header
-        $pdf->setPrintHeader(false);
+        $logofile = null;
+        foreach ($files as $file) {
+            if ($file->get_filename() === '.') {
+                continue;
+            }
+            $logofile = $file;
+        }
 
-        // set default header data
-        // $pdf->SetHeaderData(PDF_HEADER_LOGO, PDF_HEADER_LOGO_WIDTH, PDF_HEADER_TITLE.' 001', PDF_HEADER_STRING, array(0,64,255), array(0,64,128));
-        $pdf->setFooterData(array(0,64,0), array(0,64,128));
+        $chroot = [ $CFG->dirroot . '/course/format/udehauthoring/' ];
 
-        // set header and footer fonts
-        // $pdf->setHeaderFont(Array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
-        $pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
+        if (!is_null($logofile)) {
+            $rawlogopath = $logofile->copy_content_to_temp('udeh', 'logo');
+            $logopath = $rawlogopath . '.' . pathinfo($logofile->get_filename())['extension'];
+            rename($rawlogopath, $logopath);
+            $chroot[] = pathinfo($logopath)['dirname'];
+        } else {
+            $logopath = null;
+        }
 
-        // set default monospaced font
-        $pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+        $options = new \Dompdf\Options();
+        $options->setChroot($chroot);
+        $dompdf = new Dompdf($options);
 
-        // set margins
-        $pdf->SetMargins(PDF_MARGIN_LEFT, 10, PDF_MARGIN_RIGHT);
-        // $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
-        $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
 
-        // set auto page breaks
-        $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+        ob_start();
+        require($CFG->dirroot . '/course/format/udehauthoring/pdf-template.php');
+        $html = ob_get_clean();
 
-        // set image scale factor
-        $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+        $dompdf->setBasePath($CFG->dirroot . '/course/format/udehauthoring/');
+        $dompdf->loadHtml($html);
+        $dompdf->render();
 
-        // ---------------------------------------------------------
+        if (!is_null($logopath)) {
+            unlink($logopath);
+        }
 
-        // set default font subsetting mode
-        $pdf->setFontSubsetting(true);
-
-        // Set font
-        // dejavusans is a UTF-8 Unicode font, if you only need to
-        // print standard ASCII chars, you can use core fonts like
-        // helvetica or times to reduce file size.
-        $pdf->SetFont('dejavusans', '', 14, '', true);
-
-        // set text shadow effect
-        $pdf->setTextShadow(array('enabled'=>true, 'depth_w'=>0.2, 'depth_h'=>0.2, 'color'=>array(196,196,196), 'opacity'=>1, 'blend_mode'=>'Normal'));
-
-        $pdf->AddPage();
-        $pdf->writeHTMLCell('', '', '', '', $this->get_presentation_content(), 0, 1, 0, true, '', true);
-        $pdf->lastPage();
-
-        $pdf->AddPage();
-        $pdf->writeHTMLCell('', '', '', '', $this->get_place_content(), 0, 1, 0, true, '', true);
-        $pdf->lastPage();
-
-        $modules_content = "<div>
-            <h3>" . get_string('modulescontent', 'format_udehauthoring') . "</h3>
-            <table>
-                " . $this->get_modules_content() . "
-            </table>
-            <br>
-        </div>";
-        $pdf->AddPage();
-        $pdf->writeHTMLCell('', '', '', '', $modules_content, 0, 1, 0, true, '', true);
-        $pdf->lastPage();
-
-        $evaluations_content = "<div>
-            <h3>" . get_string('evaluations', 'format_udehauthoring') . "</h3>
-            " . $this->get_evaluations_content() . "
-            <br>
-        </div>";
-        $pdf->AddPage();
-        $pdf->writeHTMLCell('', '', '', '', $evaluations_content, 0, 1, 0, true, '', true);
-        $pdf->lastPage();
-
-        $pdf->AddPage();
-        $pdf->writeHTMLCell('', '', '', '', $this->get_extra_content(), 0, 1, 0, true, '', true);
-        $pdf->lastPage();
-
-        return $pdf->Output('', 'S');
+        return $dompdf->output();
     }
 
+    /**
+     * For debugging purposes only
+     *
+     * @return false|string
+     */
+    public function get_html_content() {
+        global $CFG;
+
+        // get header logo
+        $fs = get_file_storage();
+        $files = $fs->get_area_files(\context_system::instance()->id, 'core', 'syllabusheaderlogo');
+
+        $logofile = null;
+        foreach ($files as $file) {
+            if ($file->get_filename() === '.') {
+                continue;
+            }
+            $logofile = $file;
+        }
+
+        $chroot = [ $CFG->dirroot . '/course/format/udehauthoring/' ];
+
+        if (!is_null($logofile)) {
+            $rawlogopath = $logofile->copy_content_to_temp('udeh', 'logo');
+            $logopath = $rawlogopath . '.' . pathinfo($logofile->get_filename())['extension'];
+            rename($rawlogopath, $logopath);
+            $chroot[] = pathinfo($logopath)['dirname'];
+        } else {
+            $logopath = null;
+        }
+
+        ob_start();
+        require($CFG->dirroot . '/course/format/udehauthoring/pdf-template.php');
+        return ob_get_clean();
+    }
 
 }

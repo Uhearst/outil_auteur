@@ -1,4 +1,4 @@
-import {initTinyMce, prepareActionButton, removeTinyMce} from "./utils";
+import {handleNewAccordionElement, initTinyMce, prepareAccordions, prepareActionButton, removeTinyMce} from "./utils";
 import {dictionnary} from "./language/format_udehauthoring_fr";
 
 let counterTeachingObjectives = 0;
@@ -8,8 +8,9 @@ let cloneTooltipLearningObjectivesCompetency = null;
 
 /**
  * @param {int} index
+ * @param {boolean} fromBtnClick
  */
-function addLearningObjectives(index) {
+function addLearningObjectives(index, fromBtnClick) {
     let x = buildLearningObjectives(index);
     let container = document.getElementById('course_learning_objectives_container_' + index);
     container.appendChild(x);
@@ -18,11 +19,15 @@ function addLearningObjectives(index) {
     let newIndex = container.children.length;
     initTinyMce('id_course_learning_objectives_def_' + index + '_' + (newIndex - 1), 'superscript subscript | undo redo');
     getLearningTooltip(index, (newIndex - 1));
+    if (fromBtnClick) {
+        handleNewAccordionElement(x);
+    }
 }
 
 /**
+ * @param {boolean} fromBtnClick
  */
-function addTeachingObjectives() {
+function addTeachingObjectives(fromBtnClick) {
     let x = buildTeachingObjectives();
     let container = document.getElementById('displayable-form-objectives-container');
     container.insertBefore(x, document.getElementById('teaching-add-container'));
@@ -31,6 +36,9 @@ function addTeachingObjectives() {
     initTinyMce('id_course_teaching_objectives_' + counterTeachingObjectives, 'superscript subscript | undo redo');
     initTinyMce('id_course_learning_objectives_def_' + counterTeachingObjectives + '_' + 0, 'superscript subscript | undo redo');
     getTeachingTooltip(counterTeachingObjectives);
+    if (fromBtnClick) {
+        handleNewAccordionElement(x);
+    }
 }
 
 /**
@@ -687,7 +695,7 @@ export const initObjectives = () => {
                     event.stopImmediatePropagation();
                 } else {
                     event.stopImmediatePropagation();
-                    addLearningObjectives(index);
+                    addLearningObjectives(index, true);
                 }
             } else if (element && element.id.includes('teaching') && element.hidden === false) {
                 if (element.id.includes('remove')) {
@@ -715,7 +723,7 @@ export const initObjectives = () => {
                 element = event.target;
             }
             if (element && element.id.includes('teaching') && element.hidden === false) {
-                addTeachingObjectives();
+                addTeachingObjectives(true);
             } else {
                 return;
             }
@@ -728,6 +736,8 @@ export const initObjectives = () => {
         {type: 1, id: 'learning_objectives_0'}]);
     disableTeachingDeleteButton();
     disableLearningDeleteButton();
+    prepareAccordions('course_teaching_objectives_container_', 1);
+    prepareAccordions('course_learning_objectives_subcontainer_', 2);
 };
 
 export const fillFormObjectives = (teachingObjectives) => {
@@ -738,7 +748,7 @@ export const fillFormObjectives = (teachingObjectives) => {
             waitWithInterval('id_course_teaching_objectives_0', 1, teachingObjective.teachingobjective);
         } else {
             if (document.getElementById('id_course_teaching_objectives_' + i) === null) {
-                addTeachingObjectives();
+                addTeachingObjectives(false);
             }
             let element = document.getElementById('id_course_teaching_objectives_' + i);
             element.value = teachingObjective.teachingobjective;
@@ -766,7 +776,7 @@ export const fillFormObjectives = (teachingObjectives) => {
                     learningElementCompetency.value = learningobjective.learningobjectivecompetency;
                     learningElementText.value = learningobjective.learningobjective;
                 } else {
-                    addLearningObjectives(i);
+                    addLearningObjectives(i, false);
                     learningElementText = document.getElementById('id_course_learning_objectives_def_' + i + '_' + j);
                     // eslint-disable-next-line max-len
                     learningElementCompetency = document.getElementById('id_course_learning_objectives_competency_type_' + i + '_' + j);
@@ -781,4 +791,6 @@ export const fillFormObjectives = (teachingObjectives) => {
     });
     disableTeachingDeleteButton();
     disableLearningDeleteButton();
+    prepareAccordions('course_teaching_objectives_container_', 1);
+    prepareAccordions('course_learning_objectives_subcontainer_', 2);
 };

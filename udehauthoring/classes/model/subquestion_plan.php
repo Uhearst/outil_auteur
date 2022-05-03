@@ -188,6 +188,7 @@ class subquestion_plan
             }, $this->explorations),
             'exploration_marked' => array_map(function($exploration) { return $exploration->ismarked; }, $this->explorations),
             'exploration_evaluation_type' => array_map(function($exploration) { return $exploration->evaluationtype; }, $this->explorations),
+            'exploration_tool_cmid' => array_map(function($exploration) { return $exploration->toolcmid; }, $this->explorations),
             'resource_id' => array_map(function($resource) { return $resource->id; }, $this->resources),
             'resource_title' => array_map(function($resource) {
                 return (object)[

@@ -5,6 +5,7 @@ namespace format_udehauthoring\model;
 
 
 use format_udehauthoring\utils;
+use moodle_url;
 
 class exploration_plan
 {
@@ -22,6 +23,27 @@ class exploration_plan
     public $length = null;
     public $instructions = null;
     public $timemodified = null;
+    public $toolcmid = null;
+
+    /**
+     * return list of available tools.
+     *
+     * @return array
+     */
+    public static function get_available_tools() {
+        return ['Forum', 'Quiz', 'Assignment'];
+    }
+
+    /**
+     * return associated tool name.
+     *
+     * @param $index int
+     * @return string
+     */
+    public static function get_related_tool($index) {
+        $tools = exploration_plan::get_available_tools();
+        return strtolower($tools[$index]);
+    }
 
     /**
      * Instanciate an object from form data as return by a \moodleform.
@@ -43,6 +65,7 @@ class exploration_plan
         $explorationplan->evaluationtype = $data->exploration_evaluation_type;
         $explorationplan->length = $data->exploration_length['text'];
         $explorationplan->instructions= $data->exploration_instructions['text'];
+        $explorationplan->toolcmid= $data->exploration_tool_cmid;
 
         return $explorationplan;
     }
@@ -75,6 +98,9 @@ class exploration_plan
             $explorationplan->instructions = $record->instructions;
             $explorationplan->location = $record->location;
             $explorationplan->timemodified = $record->timemodified;
+            $relatedtoolcmid = explorationtool_plan::get_related_cmid($record->id);
+            $explorationplan->toolcmid= $relatedtoolcmid;
+
             $explorationplans[] = $explorationplan;
         }
 
@@ -132,7 +158,7 @@ class exploration_plan
                 'format' => FORMAT_HTML
             ],
             'exploration_marked' => $this->ismarked,
-            'exploration_evaluation_type' => $this->evaluationtype
+            'exploration_evaluation_type' => $this->evaluationtype,
         ];
     }
 
@@ -152,7 +178,6 @@ class exploration_plan
             $record->timemodified = time();
             $this->id = $DB->insert_record('udehauthoring_exploration', $record);
         }
-
     }
 
     public function delete() {

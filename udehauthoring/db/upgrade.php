@@ -196,7 +196,7 @@ function xmldb_format_udehauthoring_upgrade($oldversion) {
             $dbman->create_table($jointable);
         }
 
-        // Define field timemodified to be added to udehauthoring_resource.
+        // Define field timemodified to be added to udehauthoring_evaluation_obj.
         $currenttable = new xmldb_table('udehauthoring_evaluation_obj');
         $timefield = new xmldb_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'audehlearningobjectiveid');
 
@@ -211,6 +211,123 @@ function xmldb_format_udehauthoring_upgrade($oldversion) {
 
         // Udehauthoring savepoint reached.
         upgrade_plugin_savepoint(true, 2022022505, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2022033100) {
+        $evalobjtable = new xmldb_table('udehauthoring_evaluation_obj');
+        $courseidfield = new xmldb_field('audehcourseid', XMLDB_TYPE_INTEGER, 10, XMLDB_NOTNULL, XMLDB_NOTNULL);
+
+        if (!$dbman->field_exists($evalobjtable, $courseidfield)) {
+            $dbman->add_field($evalobjtable, $courseidfield);
+            $evalobjtable->add_key('audehcourseidfk', XMLDB_KEY_FOREIGN, ['audehcourseid'], 'udehauthoring_course', ['id']);
+        }
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2022033100, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2022040700) {
+        $now = time();
+        if (!$dbman->table_exists('udehauthoring_unit')) {
+            $unittable = new xmldb_table('udehauthoring_unit');
+
+            $unittable->add_field('id', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+            $unittable->add_field('audehunitid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+            $unittable->add_field('audehcourseid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+
+            $unittable->add_key('id', XMLDB_KEY_PRIMARY, array('id'));
+            $unittable->add_key('audehunitidfk', XMLDB_KEY_FOREIGN, ['audehunitid'], 'config', ['id']);
+            $unittable->add_key('audehcourseidfk', XMLDB_KEY_FOREIGN, ['audehcourseid'], 'udehauthoring_course', ['id']);
+            $dbman->create_table($unittable);
+        }
+
+        $table = new xmldb_table('udehauthoring_course');
+        $field = new xmldb_field('unit');
+
+        // Conditionally launch drop field fileid.
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->drop_field($table, $field);
+        }
+
+        // Define field timemodified to be added to udehauthoring_evaluation_obj.
+        $currentunittable = new xmldb_table('udehauthoring_unit');
+        $timefield = new xmldb_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'audehcourseid');
+
+        // Conditionally launch add field timemodified.
+        if (!$dbman->field_exists($currentunittable, $timefield)) {
+            $dbman->add_field($currentunittable, $timefield);
+        }
+
+        $DB->execute("UPDATE {udehauthoring_unit} SET timemodified = '{$now}' WHERE 1");
+        $timefield->setDefault(null);
+        $dbman->change_field_default($currentunittable, $timefield);
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2022040700, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2022041400) {
+
+        // Define field embed to be added to udehauthoring_course.
+        $coursetable = new xmldb_table('udehauthoring_course');
+        $embedfield = new xmldb_field('embed', XMLDB_TYPE_TEXT, null, null, null, null, null, 'question');
+
+        // Conditionally launch add field embed.
+        if (!$dbman->field_exists($coursetable, $embedfield)) {
+            $dbman->add_field($coursetable, $embedfield);
+        }
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2022041400, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2022042200) {
+        $now = time();
+        if (!$dbman->table_exists('udehauthoring_exp_tool')) {
+            $tooltable = new xmldb_table('udehauthoring_exp_tool');
+
+            $tooltable->add_field('id', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+            $tooltable->add_field('courseid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+            $tooltable->add_field('audehexplorationid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+            $tooltable->add_field('toolid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+            $tooltable->add_field('tooltype', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL);
+
+            $tooltable->add_key('id', XMLDB_KEY_PRIMARY, array('id'));
+            $tooltable->add_key('audehexplorationidfk', XMLDB_KEY_FOREIGN, ['audehexplorationid'], 'udeh_exploration', ['id']);
+            $dbman->create_table($tooltable);
+        }
+
+        // Define field timemodified to be added to udehauthoring_evaluation_obj.
+        $currenttooltable = new xmldb_table('udehauthoring_exp_tool');
+        $timefield = new xmldb_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'tooltype');
+
+        // Conditionally launch add field timemodified.
+        if (!$dbman->field_exists($currenttooltable, $timefield)) {
+            $dbman->add_field($currenttooltable, $timefield);
+        }
+
+        $DB->execute("UPDATE {udehauthoring_exp_tool} SET timemodified = '{$now}' WHERE 1");
+        $timefield->setDefault(null);
+        $dbman->change_field_default($currenttooltable, $timefield);
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2022042200, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2022042201) {
+
+        // Define field embed to be added to udehauthoring_course.
+        $coursetable = new xmldb_table('udehauthoring_course');
+        $isembedfield = new xmldb_field('isembed', XMLDB_TYPE_INTEGER, 1, null, XMLDB_NOTNULL, null, null, 'embed');
+        $isembedfield->setDefault(0);
+
+        // Conditionally launch add field embed.
+        if (!$dbman->field_exists($coursetable, $isembedfield)) {
+            $dbman->add_field($coursetable, $isembedfield);
+        }
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2022042201, 'format', 'udehauthoring');
     }
 
     return true;

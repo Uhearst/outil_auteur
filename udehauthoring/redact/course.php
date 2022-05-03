@@ -4,7 +4,7 @@ use format_udehauthoring\utils;
 
 require_once('../../../../config.php');
 
-global $DB, $PAGE, $OUTPUT, $USER, $URL;
+global $DB, $PAGE, $OUTPUT, $USER, $URL, $ME, $COURSE;
 
 $PAGE->requires->js(new \moodle_url('https://cdn.tiny.cloud/1/wllc5n0q7z2e5cw8iph2p6dqbkicp2l2jwffh61dg2j0y4gk/tinymce/5/tinymce.min.js'), true);
 $PAGE->requires->css('/course/format/udehauthoring/authoring_tool.css');
@@ -31,7 +31,7 @@ $PAGE->set_heading($course->fullname);
 
 $filemanageropts = array('subdirs' => 0, 'maxbytes' => '0', 'maxfiles' => 1, 'context' => $context);
 
-$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'init');
+$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'init', array($COURSE->lang));
 
 $courseplan = \format_udehauthoring\model\course_plan::instance_by_courseid($courseid, $context);
 
@@ -70,9 +70,9 @@ if ($data = $form->get_data()) {
 
 echo $OUTPUT->header();
 
-$PAGE->requires->js_call_amd('format_udehauthoring/notificationHelper', 'init');
+$PAGE->requires->js_call_amd('format_udehauthoring/notificationHelper', 'initNotification');
 
-echo \format_udehauthoring\utils::breadCrumb($courseplan->title);
+echo \format_udehauthoring\utils::breadCrumb($courseplan);
 
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavigation', 'init');
 echo \format_udehauthoring\utils::mainMenu($courseplan, substr($ME, strrpos($ME, '/') + 1));

@@ -40,7 +40,8 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
         $coursesections = $DB->get_records('course_sections', [
             'course' => $course->id,
             'visible' => 1
-        ]);
+        ], 'section ASC');
+        array_pop($coursesections); // Evaluations section not displayed
 
         $formatted_coursefullname = format_text($course->fullname);
         $formatted_coursesummary = format_text(file_rewrite_pluginfile_urls(
@@ -106,11 +107,12 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
             'course' => $course->id,
             'visible' => 0
         ]);
+        array_pop($coursesections); // Evaluations section not displayed
 
         $formatted_coursefullname = format_text($course_plan->title);
         $introductionfilehtml = utils::renderFileAreaHTML($context->id, 'format_udehauthoring', 'courseintroduction', 0);
         $introductionfilehtml = empty($introductionfilehtml) ? '' :
-            $introductionfilehtml[0];
+            reset($introductionfilehtml);
 
         $summary = <<<EOD
             <div class='udeha-course-question'>{$course_plan->question}</div>
@@ -125,16 +127,16 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
             'courseintroduction',
             0
         ), FORMAT_MOODLE, ['allowid' => TRUE]);
-        $str_show = get_string('showcourseintro', 'format_udehauthoring');
-        $str_hide = get_string('hidecourseintro', 'format_udehauthoring');
+        $str_show = '<i class="icon fa fa-play"></i>' . get_string('showcourseintro', 'format_udehauthoring');
+        $str_hide = '<i class="icon fa fa-times"></i>' . get_string('hidecourseintro', 'format_udehauthoring');
         // #udeha-course-introduction refers to a media rendered during export in the course summary
         $content = <<<EOD
                     <div class='container udeha-course-page'>
                       <div class='row'>
                         <div class='col-12 udeha-course-course'>
                             <a class="collapsed btn-course-intro btn btn-secondary" data-toggle="collapse" href="#udeha-course-introduction" aria-expanded="false">
-                                <span class="btn-course-intro-show">{$str_show}</span>
-                                <span class="btn-course-intro-hide">{$str_hide}</span>
+                                <span class="label-show">{$str_show}</span>
+                                <span class="label-hide">{$str_hide}</span>
                             </a>
                             <h2 class='udeha-course-fullname'>{$formatted_coursefullname}</h2>
                             <div class='udeha-course-summary'>{$formatted_coursesummary}</div>
@@ -186,7 +188,12 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
         if ($menuinfo->target instanceof \format_udehauthoring\publish\target\preview) {
             $context = \context_course::instance($node->courseid);
             $courseplan = \format_udehauthoring\model\course_plan::instance_by_courseid($node->courseid, $context);
-            if (is_null($node->moduleindex) || 0 === $node->moduleindex) {
+            if($node->isevaluations && !is_null($node->moduleindex)) {
+                // url to evaluation redact
+                $evaluationid = $courseplan->evaluations[$node->moduleindex]->id;
+                $editurl = new \moodle_url('/course/format/udehauthoring/redact/evaluation.php', ['id' => $evaluationid]);
+            }
+            else if (is_null($node->moduleindex) || 0 === $node->moduleindex) {
                 // url to course redact
                 $editurl = new \moodle_url('/course/format/udehauthoring/redact/course.php', ['course_id' => $node->courseid]);
             } else if (is_null($node->subquestionindex)) {
@@ -198,7 +205,6 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
                 $subquestionid = $courseplan->sections[$node->moduleindex - 1]->subquestions[$node->subquestionindex]->id;
                 $editurl = new \moodle_url('/course/format/udehauthoring/redact/subquestion.php', ['id' => $subquestionid]);
             }
-
             $menuhtml .= "<div class='alert alert-warning'>" . get_string('warningpreview', 'format_udehauthoring', $editurl->out(false)) . "</div>";
         }
 
@@ -208,7 +214,7 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
 
             case menu_node::$TYPE_SYLLABUS:
             case menu_node::$TYPE_MODULE:
-            case menu_node::$TYPE_EVALUATIONS:
+            case menu_node::$TYPE_EVALUATIONSLIST:
                 $str_backhome = get_string('menubackhome', 'format_udehauthoring');
                 $menuhtml .= "<div class='udeha-course-nav-back'><a href='{$node->parent->url}'><i class='icon fa fa-angle-left'></i>{$str_backhome}</a></div>";
                 $menuhtml .= "<ul>";
@@ -224,7 +230,7 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
                         case menu_node::$TYPE_MODULE:
                             $label = get_string('menumodule', 'format_udehauthoring', $sibling->moduleindex);
                             break;
-                       case menu_node::$TYPE_EVALUATIONS:
+                       case menu_node::$TYPE_EVALUATIONSLIST:
                            $label = get_string('menuevaluations', 'format_udehauthoring');
                             break;
                     }
@@ -236,10 +242,16 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
 
             case menu_node::$TYPE_SYLLABUSPART:
             case menu_node::$TYPE_SUBQUESTION:
+            case menu_node::$TYPE_EVALUATION:
                 $moduleindex = $node->parent->moduleindex;
-                $parentlabel = menu_node::$TYPE_SYLLABUS === $node->parent->type() ?
-                    get_string('menubackintro', 'format_udehauthoring') :
-                    get_string('menubackmodule', 'format_udehauthoring', $node->parent->moduleindex);
+
+                if (menu_node::$TYPE_SYLLABUS === $node->parent->type()) {
+                    $parentlabel = get_string('menubackintro', 'format_udehauthoring');
+                } else if(menu_node::$TYPE_MODULE === $node->parent->type()) {
+                    $parentlabel = get_string('menubackmodule', 'format_udehauthoring', $node->parent->moduleindex);
+                } else if(menu_node::$TYPE_EVALUATIONSLIST === $node->parent->type()) {
+                    $parentlabel = get_string('menubackevals', 'format_udehauthoring');
+                }
 
                 $menuhtml .= "<div class='udeha-course-nav-back'><a href='{$node->parent->url}'><i class='icon fa fa-angle-left'></i>{$parentlabel}</a></div>";
                 $menuhtml .= "<ul>";
@@ -247,8 +259,13 @@ class format_udehauthoring_renderer extends plugin_renderer_base {
                     $classattr = $sibling === $node ?
                         " class='active'" :
                         "";
-                    $subquestionindex = $sibling->subquestionindex + 1;
-                    $label = "{$moduleindex}.{$subquestionindex}";
+                    if (menu_node::$TYPE_EVALUATION === $node->type()) {
+                        $label = get_string('menuevaluation', 'format_udehauthoring', $sibling->moduleindex + 1);
+                    } else {
+                        $subquestionindex = $sibling->subquestionindex + 1;
+                        $label = "{$moduleindex}.{$subquestionindex}";
+                    }
+
                     $menuhtml .= "<li{$classattr}><a href='{$sibling->url}'>{$label}</a></li>";
                 }
                 $menuhtml .= "</ul>";

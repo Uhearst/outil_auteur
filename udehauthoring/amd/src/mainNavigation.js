@@ -47,7 +47,6 @@ function updateVisibleForm() {
     let page = window.location.pathname.substring(n + 1);
     let anchor = window.location.href.includes("#") ?
         window.location.href.substring(window.location.href.lastIndexOf('#') + 1) : null;
-    // TODO other pages
     if (page.includes('course')) {
         if (anchor === null) {
             hideAllDisplayableElements();

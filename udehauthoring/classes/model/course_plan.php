@@ -13,7 +13,7 @@ class course_plan
 {
     public $id = null;
     public $courseid = null;
-    public $unit = null;
+    public $units = [];
     public $code = null;
     public $credit = null;
     public $bloc = null;
@@ -27,6 +27,8 @@ class course_plan
     public $title = null;
     public $question = null;
     public $description = null;
+    public $isembed = null;
+    public $embed = null;
     public $introduction = null;
     public $sections = null;
     public $teachingobjectives = null;
@@ -39,14 +41,11 @@ class course_plan
     public $evaluations = null;
     public $timemodified = null;
 
-    public static function get_teaching_units() {
-        return ['administration des affaires et gestion', 'enjeux humains et sociaux', 'psychologie'];
-    }
-
     /**
      * Instantiate an object from form data as return by a \moodleform.
      *
      * @param $data object
+     * @param $postdata array
      * @return course_plan
      */
     public static function instance_by_form_data($data, $postdata) {
@@ -80,7 +79,7 @@ class course_plan
             $courseplan->id = $data->id;
         }
         $courseplan->courseid = $data->course_id;
-        $courseplan->unit = $data->unit;
+        $courseplan->units = $data->units;
         $courseplan->code = $data->code;
         $courseplan->credit = $data->credit;
         $courseplan->bloc = $data->bloc;
@@ -94,6 +93,8 @@ class course_plan
         $courseplan->title = $data->course_title;
         $courseplan->question = $data->course_question['text'];
         $courseplan->description = $data->course_description['text'];
+        $courseplan->isembed = $data->isembed;
+        $courseplan->embed = $data->course_introduction_embed;
         $courseplan->introduction = $data->course_introduction;
         $courseplan->problematic = $data->course_problematic['text'];
         $courseplan->place = $data->course_place_in_program['text'];
@@ -106,6 +107,7 @@ class course_plan
     /**
      * Instantiate fields for Objectives.
      * @param $data object
+     * @param $postdata array
      * @return course_plan
      */
     private static function instance_objectives_by_form_data($data, $postdata) {
@@ -294,13 +296,13 @@ class course_plan
      *
      * @param $courseid int
      * @param $context context
+     * @param $iscourseform boolean
      * @return false|course_plan
      * @throws \dml_exception
      */
     public static function instance_by_courseid($courseid, $context) {
         global $DB;
 
-        // TODO: validate role and number of teacher with UDEH
         $record = $DB->get_record('udehauthoring_course', ['courseid' => $courseid]);
         if (!$record) {
             return false;
@@ -314,6 +316,8 @@ class course_plan
                 $courseplan->$key = teachingobjective_plan::instance_all_by_course_plan_id($courseplan->id);
             } else if('evaluations' === $key) {
                 $courseplan->$key = evaluation_plan::instance_all_by_course_plan_id($courseplan->id);
+            } else if('units' === $key) {
+                $courseplan->$key = unit_plan::instance_all_by_course_plan_id($courseplan->id);
             } else if($key != 'introduction') {
                 $courseplan->$key = $record->$key;
             }
@@ -381,11 +385,15 @@ class course_plan
         foreach($courseplan as $key => $_) {
             if ('sections' === $key) {
                 $courseplan->$key = section_plan::instance_all_by_course_plan_id($courseplan->id);
-            } else if('teachingobjectives' === $key) {
+            }
+            else if('teachingobjectives' === $key) {
                 $courseplan->$key = teachingobjective_plan::instance_all_by_course_plan_id($courseplan->id);
             }
             else if('evaluations' === $key) {
                 $courseplan->$key = evaluation_plan::instance_all_by_course_plan_id($courseplan->id);
+            }
+            else if('units' === $key) {
+                $courseplan->$key = unit_plan::instance_all_by_course_plan_id($courseplan->id);
             }
             else if($key != 'introduction') {
                 $courseplan->$key = $record->$key;
@@ -418,7 +426,7 @@ class course_plan
             return (object)[
                 'id' => $this->id,
                 'course_id' => $this->courseid,
-                'unit' => $this->unit,
+                'units' => array_map(function($unit) { return $unit->audehunitid; }, $this->units),
                 'code' => $this->code,
                 'credit' => $this->credit,
                 'bloc' => $this->bloc,
@@ -439,6 +447,8 @@ class course_plan
                     'format' => FORMAT_HTML
                 ],
                 'course_introduction' => $draftitemid,
+                'isembed' => $this->isembed,
+                'course_introduction_embed' => $this->embed,
                 'course_problematic' => (object)[
                     'text' => $this->problematic,
                     'format' => FORMAT_HTML
@@ -495,7 +505,6 @@ class course_plan
         $record = new \stdClass();
         $record->courseid = $this->courseid;
         if($this->id) $record->id = $this->id;
-        $record->unit = $this->unit;
         if($this->code) $record->code = $this->code;
         if($this->credit) $record->credit = $this->credit;
         $record->bloc = $this->bloc;
@@ -507,6 +516,8 @@ class course_plan
         if($this->coursezoomlink) $record->coursezoomlink = $this->coursezoomlink;
         if($this->teachercontacthours) $record->teachercontacthours = $this->teachercontacthours;
         if($this->title) $record->title = $this->title;
+        $record->isembed = $this->isembed;
+        if($this->embed) $record->embed = $this->embed;
         if($this->question) $record->question = $this->question;
         if($this->description) $record->description = $this->description;
         if($this->problematic) $record->problematic = $this->problematic;
@@ -522,6 +533,34 @@ class course_plan
             $record->timemodified = time();
             $this->id = $DB->insert_record('udehauthoring_course', $record);
         }
+
+        $holderrecords = $DB->get_records('udehauthoring_unit', ['audehcourseid' => $this->id], '', 'audehunitid');
+        $previousunitsid = [];
+        foreach ($holderrecords as $holder) {
+            $previousunitsid[] = $holder->audehunitid;
+        }
+        $input_units_id = [];
+
+        if($this->units !== []) {
+            foreach ($this->units as $unit) {
+                if(!in_array($unit, $previousunitsid)) {
+                    $unitplan = new unit_plan();
+                    $unitplan->audehcourseid = $this->id;
+                    $unitplan->audehunitid = (int)$unit;
+                    $unitplan->save();
+                }
+                $input_units_id[] = $unit;
+            }
+        }
+
+        foreach ($previousunitsid as $previousunitid) {
+            if (!in_array($previousunitid, $input_units_id)) {
+                $unitplan = unit_plan::instance_by_config_id($previousunitid);
+                $unitplan->delete();
+            }
+        }
+
+
     }
 
     private function save_objectives($context) {
@@ -609,7 +648,7 @@ class course_plan
             if ($evaluation->id && empty($evaluation->title)) {
                 $evaluation->delete();
             } else {
-                $evaluation->save($context, false);
+                $evaluation->save($context, true);
             }
         }
 

@@ -4,7 +4,7 @@ use format_udehauthoring\utils;
 
 require_once('../../../../config.php');
 
-global $DB, $PAGE, $OUTPUT;
+global $DB, $PAGE, $OUTPUT, $ME;
 
 $PAGE->requires->css('/course/format/udehauthoring/authoring_tool.css');
 
@@ -33,7 +33,9 @@ $PAGE->set_heading($course->fullname);
 $filemanageropts = array('subdirs' => 0, 'maxbytes' => '0', 'maxfiles' => 1, 'context' => $context);
 $form = new \format_udehauthoring\form\redact_evaluation(
     null,
-    array('coursetitle' => $courseplan->title),
+    array('coursetitle' => $courseplan->title,
+        'evaluation' => $evaluationplan,
+        'teachingobectives' => \format_udehauthoring\model\teachingobjective_plan::instance_all_by_course_plan_id($courseplan->id)),
     'post',
     '',
     ['class' => 'udeh-form',
@@ -48,7 +50,7 @@ $form->set_data($evaluationplan->to_form_data($context));
 
 if ($data = $form->get_data()) {
     $evaluationplan = \format_udehauthoring\model\evaluation_plan::instance_by_form_data($data);
-    $evaluationplan->save($context, true);
+    $evaluationplan->save($context, false);
     utils::refreshPreview($course->id);
     redirect(new moodle_url('/course/format/udehauthoring/redact/evaluation.php', ['id' => $evaluationplan->id]),
         get_string('coursesaved', 'format_udehauthoring'), null,
@@ -58,12 +60,33 @@ if ($data = $form->get_data()) {
 
 echo $OUTPUT->header();
 
-echo \format_udehauthoring\utils::breadCrumb($courseplan->title);
+$PAGE->requires->js_call_amd('format_udehauthoring/notificationHelper', 'initNotification');
+
+echo \format_udehauthoring\utils::breadCrumb($courseplan);
 
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavigation', 'init');
 echo \format_udehauthoring\utils::mainMenu($courseplan, substr($ME, strrpos($ME, '/') + 1));
 
-$previewurl = (new \moodle_url('/course/view.php', ['id' => $course->id, 'preview' => 1]))->out(false);
+// find evaluation index
+$ii = 0;
+while ($courseplan->evaluations[$ii]->id != $evaluationid) {
+    ++$ii;
+}
+if ($ii === count($courseplan->evaluations)) {
+    print_error('sectionmissing');
+}
+$evaluationindex = $ii;
+
+// build cmidnumber
+$target = new \format_udehauthoring\publish\target\preview();
+$cmidnumber = $target->make_cmidnumber($course->id, $evaluationindex, null, true);
+
+// find cm
+$cmid = $DB->get_field('course_modules', 'id', ['idnumber' => $cmidnumber], MUST_EXIST);
+
+// make url
+$previewurl = (new \moodle_url('/mod/page/view.php', ['id' => $cmid]))->out(false);
+
 echo \format_udehauthoring\utils::navBar($courseplan->title, $courseplan->courseid, $previewurl);
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavBar', 'initNavBar');
 

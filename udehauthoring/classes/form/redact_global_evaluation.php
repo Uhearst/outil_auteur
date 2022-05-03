@@ -46,6 +46,40 @@ class redact_global_evaluation extends \moodleform
         $repeatarray[] = $mform->createElement('hidden', 'audeh_course_id');
         $repeatarray[] = $mform->createElement('hidden', 'evaluation_title');
         $repeatarray[] = $mform->createElement('hidden', 'evaluation_description');
+
+        $repeatarray[] = $mform->createElement('html', '
+        <div class="accordion-container card ml-3 mt-2 mb-2" id="evaluation_preview_container_">
+            <div id="evaluation_preview_header_" class="card-header accordion-header">
+              <a data-toggle="collapse" href="#collapseEvaluationPreview_" role="button" aria-expanded="false" aria-controls="collapseEvaluationPreview_" class="collapsed">
+                '. get_string('previousinformations', 'format_udehauthoring') . '
+              </a>
+            </div>
+            <div class="collapse" id="collapseEvaluationPreview_">
+              <div class="card-body accordion-content">
+                <div id="evaluation_description_">
+                    <strong id="evaluation_description_header_">
+                    '. get_string('evaluationdescription', 'format_udehauthoring') . '
+                    </strong>
+                    <p id="evaluation_description_content_"></p>
+                </div>
+                <div id="evaluation_weight_">
+                    <strong id="evaluation_weight_header_">
+                    '. get_string('evaluationweight', 'format_udehauthoring') . '
+                    </strong>
+                    <p id="evaluation_weight_content_"></p>
+                </div>
+                 <div id="evaluation_obj_">
+                    <strong id="evaluation_obj_header_">
+                    '. get_string('evaluationlearningobjective', 'format_udehauthoring') . '
+                    </strong>
+                </div>
+              </div>
+            </div>
+        </div>'
+        );
+
+
+
         $repeatarray[] = $mform->createElement('filemanager', 'evaluation_introduction', get_string('evaluationintroduction', 'format_udehauthoring'), null,
             array('maxfiles' => 1));
         $repeatarray[] = $mform->createElement('editor', 'evaluation_full_description', get_string('evaluationfulldescription', 'format_udehauthoring'), ['class'=>'listable-editor', 'rows'=>'4']);

@@ -39,7 +39,7 @@ class redact_subquestion extends \moodleform
         <div class="accordion-container card ml-3">
         <div id="subquestion_preview_header" class="card-header accordion-header">
           <a data-toggle="collapse" href="#collapseSubQuestionPreview" role="button" aria-expanded="false" aria-controls="collapseSubQuestionPreview" class="collapsed">
-            Module 1 - Titre du module ' . strip_tags($this->_customdata['section']->title) . '
+            Trame 1.1 - Titre de la trame ' . strip_tags($this->_customdata['section']->title) . '
           </a>
         </div>
         <div class="collapse" id="collapseSubQuestionPreview">
@@ -72,7 +72,7 @@ class redact_subquestion extends \moodleform
         $mform->setType('subquestion_enonce', PARAM_RAW);
 
         $mform->addElement('filemanager', 'subquestion_vignette', get_string('subquestionvignette', 'format_udehauthoring'), null,
-            array('maxfiles' => 1));
+            array('subdirs' => false, 'maxfiles' => 1, 'accepted_types' => array('jpeg', 'jpg', 'png')));
 
         $this->handleHelpButtons(array(
             ['subquestionvignette', 'subquestion_vignette'],
@@ -95,6 +95,7 @@ class redact_subquestion extends \moodleform
 
         $repeatarrayexplorations[] = $mform->createElement('hidden', 'exploration_title');
         $repeatarrayexplorations[] = $mform->createElement('hidden', 'exploration_id', 0);
+        $repeatarrayexplorations[] = $mform->createElement('hidden', 'exploration_tool_cmid');
 
         $repeatarrayexplorations[] = $mform->createElement('hidden', 'exploration_question');
 
@@ -120,6 +121,13 @@ class redact_subquestion extends \moodleform
         $evaluationtype = ['Formative', 'Diagnostique', 'Par paires'];
         $repeatarrayexplorations[] = $mform->createElement('select', 'exploration_evaluation_type', get_string('explorationevaluationtype', 'format_udehauthoring'), $evaluationtype);
 
+        $grouparray = array();
+        $grouparray[] =& $mform->createElement('select', 'exploration_tool', '', exploration_plan::get_available_tools());
+        $grouparray[] =& $mform->createElement('button', 'generate_tool', 'generate tool',  ["courseid" => $this->_customdata['courseid']]);
+        $repeatarrayexplorations[] = $mform->createElement('group', 'tool_group', get_string('explorationtool', 'format_udehauthoring'), $grouparray);
+
+        $repeatarrayexplorations[] = $mform->createElement('static', 'exploration_tool_url_display', 'exploration tool url', 'Link');
+
         $repeatarrayexplorations[] = $mform->createElement('html', '</div>');
         $repeatarrayexplorations[] = $mform->createElement('html', '</div>');
         $repeatarrayexplorations[] = $mform->createElement('html', '</div>');
@@ -133,6 +141,7 @@ class redact_subquestion extends \moodleform
 
         $mform->setType('exploration_title', PARAM_TEXT);
         $mform->setType('exploration_id', PARAM_INT);
+        $mform->setType('exploration_tool_cmid', PARAM_INT);
         $mform->setType('exploration_question', PARAM_TEXT);
         $mform->setType('exploration_activity_type', PARAM_INT);
         $mform->setDefault('exploration_activity_type', 0);
@@ -172,10 +181,10 @@ class redact_subquestion extends \moodleform
 
         $mform->addElement('html', '</div>');
 
-        $mform->addElement('html', '<div id="subquestion-resources-container"><h2 class="ml-3 mb-3">' . get_string('titleresources', 'format_udehauthoring') . '</h2>');
+        $mform->addElement('html', '<div id="subquestion-resources-container"><h2 class="ml-3 mb-3 page-title">' . get_string('titleresources', 'format_udehauthoring') . '</h2>');
 
         $repeatarrayresources = [];
-        $repeatarrayresources[] = $mform->createElement('html', '<div class="row row-container row_subquestion_resource_container mb-3" id="row_subquestion_resource_container">');
+        $repeatarrayresources[] = $mform->createElement('html', '<div class="row row-container row_subquestion_resource_container mb-3" id="row_subquestion_resource_container_">');
 
         $repeatarrayresources[] = $mform->createElement('html', '<div class="col-11 accordion-container card">');
         $repeatarrayresources[] = $mform->createElement('html', '<div class="accordion-header card-header">');
@@ -190,7 +199,7 @@ class redact_subquestion extends \moodleform
         $repeatarrayresources[] = $mform->createElement('hidden', 'resource_id', 0);
         $repeatarrayresources[] = $mform->createElement('text', 'resource_external_link', get_string('resourceexternallink', 'format_udehauthoring'));
         $repeatarrayresources[] = $mform->createElement('filemanager', 'resource_vignette', get_string('resourcevignette', 'format_udehauthoring'), null,
-            array('maxfiles' => 1));
+            array('subdirs' => false, 'maxfiles' => 1, 'accepted_types' => array('jpeg', 'jpg', 'png')));
 
         $repeatarrayresources[] = $mform->createElement('html', '</div>');
         $repeatarrayresources[] = $mform->createElement('html', '</div>');

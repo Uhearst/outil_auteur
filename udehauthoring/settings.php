@@ -23,6 +23,9 @@
  */
 
 defined('MOODLE_INTERNAL') || die;
+
+global $CFG, $ADMIN, $PAGE;
+
 require_once($CFG->dirroot. '/course/format/udehauthoring/settingslib.php');
 
 if(strpos($GLOBALS['FULLME'], 'formatsettingudehauthoring')) {
@@ -30,6 +33,15 @@ if(strpos($GLOBALS['FULLME'], 'formatsettingudehauthoring')) {
 }
 
 if ($ADMIN->fulltree) {
+    // Course plan
+    $settings->add(new admin_setting_configstoredfile('udeh_syllabusheaderlogo', 'Logo de l’entête du plan de cours', '', 'syllabusheaderlogo'));
+
+    // Teaching Units
+    $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_unit_0',
+        'Unité de cours',
+        'Unité de cours',
+        null));
+
     // Instructions
     $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_instructionscoursegeneralinformations',
         'Instructions pour les informations générales de cours',
@@ -121,8 +133,12 @@ if ($ADMIN->fulltree) {
         'Aide description du cours',
         'Texte affiché dans l\'infobulle description du cours',
         null));
+    $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_courseintroductionembed_help',
+        'Aide fichier d\'introduction \'embed\' du cours',
+        'Texte affiché dans l\'infobulle introduction \'embed\' du cours',
+        null));
     $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_courseintroduction_help',
-        'Aide introduction du cours',
+        'Aide fichier d\'introduction du cours',
         'Texte affiché dans l\'infobulle introduction du cours',
         null));
     $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_courseproblematic_help',
@@ -195,10 +211,10 @@ if ($ADMIN->fulltree) {
         'Aide pondération de l\'évaluation.',
         'Texte affiché dans l\'infobulle pondération de l\'évaluation.',
         null));
-/*    $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_evaluationlearning_help',
-        'Aide titre de l\'évaluation.',
-        'Texte affiché dans l\'infobulle titre de l\'évaluation.',
-        null));*/
+    $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_evaluationlearningobjective_help',
+        'Aide objectif d\'apprentissage de l\'évaluation.',
+        'Texte affiché dans l\'infobulle objectif d\'apprentissage de l\'évaluation.',
+        null));
     $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_evaluationassociatedmodule_help',
         'Aide module associé de l\'évaluation.',
         'Texte affiché dans l\'infobulle module associé de l\'évaluation.',

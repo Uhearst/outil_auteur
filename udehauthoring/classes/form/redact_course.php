@@ -63,10 +63,11 @@ class redact_course extends \moodleform
         $mform->addElement('editor', 'course_question', get_string('coursequestion', 'format_udehauthoring'), ['class'=>'title-editor', 'rows'=>'4']);
         $mform->setType('course_question', PARAM_RAW);
 
-        $teachingunits = course_plan::get_teaching_units();
-        $mform->addElement('select', 'unit', get_string('courseunit', 'format_udehauthoring'), $teachingunits);
-        $mform->setType('unit', PARAM_INT);
-        $mform->setDefault('unit', 0);
+        $options = array(
+            'multiple' => true,
+            'noselectionstring' => get_string('nocourseunit', 'format_udehauthoring'),
+        );
+        $mform->addElement('autocomplete', 'units', get_string('courseunit', 'format_udehauthoring'), \format_udehauthoring\model\unit_config::instance_all_values(), $options);
 
         $mform->addElement('text', 'code', get_string('coursecode', 'format_udehauthoring'));
         $mform->setType('code', PARAM_RAW);
@@ -82,19 +83,18 @@ class redact_course extends \moodleform
         $mform->addElement('text', 'teacher_name', get_string('courseteachername', 'format_udehauthoring'));
         $mform->setType('teacher_name', PARAM_RAW);
 
-        $mform->addElement('html', '<h3 class="ml-3 mt-1">' . get_string('courseteacherinformations', 'format_udehauthoring') . '</h3>');
-
         $mform->addElement('text', 'teacher_email', get_string('courseteacheremail', 'format_udehauthoring'));
         $mform->setType('teacher_email', PARAM_NOTAGS);
         $mform->addRule('teacher_email', get_string('courseteachernotemail', 'format_udehauthoring'), 'email', null, 'server');
 
-        $mform->addElement('text', 'teacher_phone', get_string('courseteacherphone', 'format_udehauthoring'));
+        $phoneattributes = array('placeholder' => '(514) 555-5555 #111');
+        $mform->addElement('text', 'teacher_phone', get_string('courseteacherphone', 'format_udehauthoring'), $phoneattributes);
         $mform->setType('teacher_phone', PARAM_NOTAGS);
-        $mform->addRule('teacher_phone', get_string('courseteachernotphone', 'format_udehauthoring'), 'numeric', null, 'server');
+        $mform->addRule('teacher_phone', get_string('courseteachernotphone', 'format_udehauthoring'), 'regex', '^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})?[-. ]?[#|ext]?([0-9]{3})$^', 'server');
 
-        $mform->addElement('text', 'teacher_cellphone', get_string('courseteachercellphone', 'format_udehauthoring'));
+        $mform->addElement('text', 'teacher_cellphone', get_string('courseteachercellphone', 'format_udehauthoring'), $phoneattributes);
         $mform->setType('teacher_cellphone', PARAM_NOTAGS);
-        $mform->addRule('teacher_cellphone', get_string('courseteachernotphone', 'format_udehauthoring'), 'numeric', null, 'server');
+        $mform->addRule('teacher_cellphone', get_string('courseteachernotphone', 'format_udehauthoring'), 'regex', '^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})?[-. ]?[#|ext]?([0-9]{3})$^', 'server');
 
         $mform->addElement('text', 'teacher_contact_hours', get_string('courseteachercontacthours', 'format_udehauthoring'));
         $mform->setType('teacher_contact_hours', PARAM_RAW);
@@ -108,8 +108,23 @@ class redact_course extends \moodleform
         $mform->addElement('editor', 'course_description', get_string('coursedescription', 'format_udehauthoring'), ['class'=>'listable-editor', 'rows'=>'4']);
         $mform->setType('course_description', PARAM_RAW);
 
+        $mform->addElement('html', '<div class="custom-control custom-switch ml-3 mb-2">
+          <input type="checkbox" class="custom-control-input" id="embed_selector">
+          <label class="custom-control-label" for="embed_selector">' . get_string("iscourseintroductionembed", "format_udehauthoring") . '</label>
+        </div>');
+/*
+        $mform->addElement('advcheckbox', 'isembed', '', 'is embed', [], array(0, 1));
+        $mform->setType('isembed', PARAM_INT);*/
+
+        $mform->addElement('hidden', 'isembed');
+        $mform->setType('isembed', PARAM_INT);
+        $mform->setDefault('isembed', 0);
+
+        $mform->addElement('text', 'course_introduction_embed', get_string('courseintroductionembed', 'format_udehauthoring'));
+        $mform->setType('course_introduction_embed', PARAM_RAW);
+
         $mform->addElement('filemanager', 'course_introduction', get_string('courseintroduction', 'format_udehauthoring'), null,
-            ['subdirs' => 1]);
+            array('subdirs' => false));
         $mform->setType('course_introduction', PARAM_RAW);
 
         $mform->addElement('editor', 'course_problematic', get_string('courseproblematic', 'format_udehauthoring'), ['class'=>'listable-editor', 'rows'=>'4']);
@@ -141,6 +156,7 @@ class redact_course extends \moodleform
             ['courseteacherzoomlink', 'teacher_zoom_link'],
             ['coursezoomlink', 'course_zoom_link'],
             ['coursedescription', 'course_description'],
+            ['courseintroductionembed', 'course_introduction_embed'],
             ['courseintroduction', 'course_introduction'],
             ['courseproblematic', 'course_problematic'],
             ['courseplace', 'course_place_in_program'],
@@ -216,7 +232,6 @@ class redact_course extends \moodleform
     {
         $repeatarraylearningobjectives = [];
         $competencytypes = ['CT', 'CC', 'CP'];
-
 
         $repeatarraylearningobjectives[] = $mform->createElement('html', '<div id="course_learning_objectives_container_0" class="course_learning_objectives_container">');
 
@@ -339,7 +354,7 @@ class redact_course extends \moodleform
         foreach ($moduleplans as $moduleplan) {
             $modulearray[$moduleplan->id] = $moduleplan->title;
         }
-        $modulearray[null] = "Aucun";
+        $modulearray[0] = "Aucun";
 
         $repeatarrayEval = [];
         $repeatarrayEval[] = $mform->createElement('html', '<div class="row row-container mb-3" id="row_course_evaluation_container_0">');
@@ -355,19 +370,20 @@ class redact_course extends \moodleform
         $repeatarrayEval[] = $mform->createElement('editor', 'evaluation_description_0', get_string('evaluationdescription', 'format_udehauthoring'), ['class'=>'listable-editor', 'rows'=>'4']);
         $repeatarrayEval[] = $mform->createElement('text', 'evaluation_weight_0', get_string('evaluationweight', 'format_udehauthoring'));
 
-        $repeatarrayEval[] = $mform->createElement('html', '<div id="fitem_id_evaluation_learning_objectives_0" class="mt-4 mb-3"> <p>'. get_string('evaluationlearningobjective', 'format_udehauthoring') . '</p>');
+        $repeatarrayEval[] = $mform->createElement('html', '<div id="fitem_id_evaluation_learning_objectives_0" name="evaluation_learning_objectives_0" class="mt-4 mb-3"> <div id="evaluation_learning_objectives_title_0" class="d-flex"> <label for="fitem_id_evaluation_learning_objectives_0" class="d-inline word-break ml-3 eval-obj-title">'. get_string('evaluationlearningobjective', 'format_udehauthoring') . '</label></div>');
         foreach($learningplans as $key=>$learningplan) {
             foreach($learningplan as $learningkey=>$plan) {
                 $repeatarrayEval[] = $mform->createElement('advcheckbox',
                     'evaluation_learning_objectives_0[' . $plan->id. ']',
                     '',
-                    ($key + 1) . '.' . ($learningkey + 1) . ' ' . strip_tags($plan->learningobjective),
-                    null,
-                    array(0, 1));
+                    ($key + 1) . '.' . ($learningkey + 1) . ' - ' . strip_tags($plan->learningobjective));
             }
         }
         $repeatarrayEval[] = $mform->createElement('html', '</div>');
         $repeatarrayEval[] = $mform->createElement('select', 'evaluation_module_0', get_string('evaluationassociatedmodule', 'format_udehauthoring'), $modulearray);
+        $repeatarrayEval[] = $mform->createElement('html', '<div class="">');
+        $repeatarrayEval[] = $mform->createElement('button', 'generate_eval', '<i class="fa fa-pencil-square-o fa-2x" aria-hidden="true"></i>');
+        $repeatarrayEval[] = $mform->createElement('html', '</div>');
         $repeatarrayEval[] = $mform->createElement('html', '</div>');
         $repeatarrayEval[] = $mform->createElement('html', '</div>');
         $repeatarrayEval[] = $mform->createElement('html', '</div>');
@@ -391,6 +407,7 @@ class redact_course extends \moodleform
             ['evaluationtitle', 'evaluation_title_0'],
             ['evaluationdescription', 'evaluation_description_0'],
             ['evaluationweight', 'evaluation_weight_0'],
+            ['evaluationlearningobjective', 'evaluation_learning_objectives_0[' . $plan->id. ']'],
             ['evaluationassociatedmodule', 'evaluation_module_0'],
         ), $mform);
 

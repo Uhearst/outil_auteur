@@ -5,7 +5,7 @@ use format_udehauthoring\utils;
 
 require_once('../../../../config.php');
 
-global $DB, $OUTPUT, $PAGE;
+global $DB, $OUTPUT, $PAGE, $ME;
 
 $PAGE->requires->css('/course/format/udehauthoring/authoring_tool.css');
 
@@ -57,7 +57,9 @@ if ($data = $form->get_data()) {
 
 echo $OUTPUT->header();
 
-echo \format_udehauthoring\utils::breadCrumb($courseplan->title);
+$PAGE->requires->js_call_amd('format_udehauthoring/notificationHelper', 'initNotification');
+
+echo \format_udehauthoring\utils::breadCrumb($courseplan);
 
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavigation', 'init');
 
@@ -73,8 +75,29 @@ $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'exportCourse', arra
 $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'publishCoursePlan', array(array($courseplan->id, $courseplan->courseid)));
 
 $form->display();
-$PAGE->requires->js_call_amd('format_udehauthoring/phpHelper', 'initGlobalEvaluations',
-    array(json_encode(array_map(function($globalevaluation) { return $globalevaluation->title; } , $gloablevaluationplans))));
+$associatedModules = [];
+
+
+$counter = 0;
+$teachingobj = \format_udehauthoring\model\teachingobjective_plan::instance_all_by_course_plan_id($courseplan->id);
+if ($teachingobj !== []) {
+    foreach ($gloablevaluationplans as $eval) {
+        $learningobjs = [];
+        foreach($teachingobj as $key => $teachingobj) {
+            foreach($teachingobj->learningobjectives as $innerkey => $learningobj) {
+                    if(in_array($learningobj->id, array_column($eval->learningobjectiveids, 'audehlearningobjectiveid'))) {
+                        $learningobjs[] =
+                            ($key + 1) . '.' . ($innerkey + 1) . ' - ' . strip_tags($learningobj->learningobjective);
+                        $counter = $counter + 1;
+                }
+            }
+        }
+        $eval->associatedobjtext = $learningobjs;
+    }
+}
+
+$PAGE->requires->js_call_amd('format_udehauthoring/globalEvaluationHelper', 'initGlobalEvaluations',
+    array(json_encode($gloablevaluationplans)));
 
 echo \html_writer::end_tag('div');
 

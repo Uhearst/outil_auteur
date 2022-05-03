@@ -302,15 +302,14 @@ class evaluation_plan
                 $evaluation_obj = new evaluationobjective_plan();
                 $evaluation_obj->audehlearningobjectiveid = (int) $learningobjectiveid;
                 $evaluation_obj->audehevaluationid = $this->id;
+                $evaluation_obj->audehcourseid = $this->audehcourseid;
                 if($value == 1 && !$evaluation_obj->instance_exists()) {
                     $evaluation_obj->save();
                 } else if($value == 0 && $evaluation_obj->instance_exists()) {
                     $evaluation_obj->delete();
                 }
-
             }
         }
-
     }
 
     public function delete() {

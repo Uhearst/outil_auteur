@@ -21,6 +21,8 @@
         <FIELD NAME="coursezoomlink" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="title" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="question" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="embed" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="isembed" TYPE="int" LENGTH="1" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="problematic" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="place" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
@@ -159,6 +161,33 @@
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
         <KEY NAME="audehevaluationidfk" TYPE="foreign" FIELDS="audehevaluationid" REFTABLE="udehauthoring_evaluation" REFFIELDS="id"/>
         <KEY NAME="audehlearningobjectiveidfk" TYPE="foreign" FIELDS="audehlearningobjectiveid" REFTABLE="udehauthoring_learning_obj" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="udehauthoring_unit" COMMENT="Teaching unit data input in the admin">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="audehunitid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="audehcourseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="audehunitidfk" TYPE="foreign" FIELDS="audehunitid" REFTABLE="config" REFFIELDS="id"/>
+        <KEY NAME="audehcourseidfk" TYPE="foreign" FIELDS="audehcourseid" REFTABLE="udehauthoring_course" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="udehauthoring_exp_tool" COMMENT="Joining table between tool and exploration">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="audehexplorationid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="toolid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="tooltype" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="audehexplorationidfk" TYPE="foreign" FIELDS="audehexplorationid" REFTABLE="udehauthoring_exploration" REFFIELDS="id"/>
       </KEYS>
     </TABLE>
   </TABLES>

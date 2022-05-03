@@ -67,6 +67,7 @@
 .format-udehauthoring .udeha-separator {
     border-color: #CC333F;
     margin: 50px 0;
+    clear: both;
 }
 
 .format-udehauthoring .udeha-separator:after {
@@ -241,6 +242,14 @@
     content: url("/course/format/udehauthoring/assets/img-front/hr-accueil.png");
 }
 
+/* SYLLABUS */
+.udeha-syllabus-header {
+    text-align: center;
+}
+
+.udeha-teacher-info span {
+    color: #6C6C6C;
+}
 
 /* SECTION PAGE */
 
@@ -349,12 +358,15 @@ td.udeha-subquestion-link a:hover, td.udeha-subquestion-link a:active {
 /* SUBQUESTION PAGE */
 
 .udeha-subquestion-vignette {
-    overflow: hidden;
+    float: right;
+    width: 364px;
+    height: 215px;
+    margin-bottom: 2em;
 }
 
 .udeha-subquestion-vignette img {
     width: 100%;
-    height: 480px;
+    height: 100%;
     object-fit: cover;
 }
 
@@ -407,6 +419,7 @@ table.udeha-resources td.udeha-resource-vignette {
     text-align: center;
     background: #777;
     position: relative;
+    padding: 0;
 }
 
 table.udeha-resources td.udeha-resource-vignette::before {
@@ -421,7 +434,7 @@ table.udeha-resources td.udeha-resource-vignette::before {
 
 table.udeha-resources td.udeha-resource-vignette img {
     width: 100%;
-    height: 80px;
+    height: 100%;
     object-fit: cover;
     position: relative;
     z-index: 1;

@@ -22,6 +22,7 @@ class restore_format_udehauthoring_plugin extends restore_format_plugin {
             new restore_path_element('udeha_subquestion',   $this->get_pathfor('/udeha_course/udeha_sections/udeha_section/udeha_subquestions/udeha_subquestion')),
             new restore_path_element('udeha_exploration',   $this->get_pathfor('/udeha_course/udeha_sections/udeha_section/udeha_subquestions/udeha_subquestion/udeha_explorations/udeha_exploration')),
             new restore_path_element('udeha_resource',   $this->get_pathfor('/udeha_course/udeha_sections/udeha_section/udeha_subquestions/udeha_subquestion/udeha_resources/udeha_resource')),
+            new restore_path_element('udeha_evaluation_obj',   $this->get_pathfor('/udeha_course/udeha_evaluation_objs/udeha_evaluation_obj')),
         ];
 
         return $paths;
@@ -166,6 +167,16 @@ class restore_format_udehauthoring_plugin extends restore_format_plugin {
         $newid = $DB->insert_record('udehauthoring_resource', $record);
         $this->set_mapping('udeha_resource', $oldid, $newid, true);
         $this->add_related_files('format_udehauthoring', 'resourcevignette', 'udeha_resource');
+    }
+
+    public function process_udeha_evaluation_obj($data) {
+        global $DB;
+
+        $record = (object)$data;
+        $record->audehcourseid = $this->get_new_parentid('udeha_course');
+        $record->audehevaluationid = $this->get_mappingid('udehauthoring_evaluation', $record->audehevaluationid, 0);
+        $record->audehlearningobjectiveid = $this->get_mappingid('udehauthoring_learning_obj', $record->audehlearningobjectiveid, 0);
+        $DB->insert_record('udehauthoring_sub_question', $record);
     }
 
     /**

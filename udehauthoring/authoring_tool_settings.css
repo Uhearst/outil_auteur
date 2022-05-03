@@ -18,3 +18,17 @@
 .setting-header a:visited {
     color: black;
 }
+
+.add-button {
+    color: #30cc00 !important; /* stylelint-disable-line declaration-no-important */
+}
+
+.unit-btn {
+    margin-top: 1rem;
+    left: 90%;
+    position: relative;
+}
+
+.remove-button {
+    color: #c5161d !important; /* stylelint-disable-line declaration-no-important */
+}
