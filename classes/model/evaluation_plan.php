@@ -379,12 +379,9 @@ class evaluation_plan
         global $DB;
 
         $record = new \stdClass();
-        if($this->isembed === '' || $this->isembed === null) {
-            $this->isembed = 0;
-        }
-        $record->isembed = $this->isembed;
+
         foreach ($this as $key => $value) {
-            if (!is_null($value) && $key != 'introduction' && $key != 'files' && $key != 'learningobjectiveids') {
+            if ($key != 'introduction' && $key != 'files' && $key != 'learningobjectiveids') {
                 if($fromregularsave) {
                     if ($key != 'title' && $key != 'description') {
                         $record->$key = $value;
@@ -394,6 +391,10 @@ class evaluation_plan
                 }
             }
         }
+        if($this->isembed === '' || $this->isembed === null) {
+            $this->isembed = 0;
+        }
+        $record->isembed = $this->isembed;
         if($fromregularsave) {
             utils::file_save_draft_area_files($this->introduction, $context->id, 'format_udehauthoring', 'evaluationintroduction',
                 $this->id);

@@ -16,23 +16,6 @@ class resource_plan
     public $timemodified = null;
 
     /**
-     * Instanciate an object from form data as return by a \moodleform.
-     *
-     * @param $data object
-     * @return resource_plan
-     */
-    public static function instance_by_form_data($data) {
-        $resourceplan = new self();
-        $resourceplan->id = $data->id;
-        $resourceplan->audehsubquestionid = $data->audeh_subquestion_id;
-        $resourceplan->title = $data->resource_title['text'];
-        $resourceplan->link = $data->resource_external_link;
-        $resourceplan->vignette = $data->resource_vignette;
-
-        return $resourceplan;
-    }
-
-    /**
      * Returns an array of all section_plans included in the course_plan with the specified ID.
      *
      * @param $audehsubquestionid
@@ -82,35 +65,12 @@ class resource_plan
         return $resourceplan;
     }
 
-    /**
-     * Produces data in the correct format for filling \format_udehauthoring\form\redact_resource
-     *
-     * @return object
-     */
-    public function to_form_data($context) {
-
-        $draftvignetteid = file_get_submitted_draft_itemid('resource_vignette');
-
-        file_prepare_draft_area($draftvignetteid, $context->id, 'format_udehauthoring', 'resourcevignette', $this->id);
-
-        return (object)[
-            'id' => $this->id,
-            'audeh_subquestion_id' => $this->audehsubquestionid,
-            'resource_title' => (object)[
-                'text' => $this->title,
-                'format' => FORMAT_HTML
-            ],
-            'resource_external_link' => $this->link,
-            'resource_vignette' => $draftvignetteid
-        ];
-    }
-
     public function save($context, $fromregularsave = true) {
         global $DB;
 
         $record = new \stdClass();
         foreach ($this as $key => $value) {
-            if (!is_null($value) && $key != 'vignette') {
+            if ($key != 'vignette') {
                 $record->$key = $value;
             }
         }

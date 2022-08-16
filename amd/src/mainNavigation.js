@@ -6,38 +6,7 @@ export function init() {
     window.addEventListener('hashchange', function() {
         updateVisibleForm();
     });
-    // TODO: Handle toogle menu
-    // handleToggleMenuButton();
 }
-
-/**
- *
- */
-/*function handleToggleMenuButton() {
-    window.console.log('here');
-    let button = document.getElementById('toggle-menu-btn');
-
-    window.console.log(window.$('#sidebar-container').height());
-    setTimeout(() => {
-        window.console.log(window.$('#sidebar-container').height());
-    }, 2000);
-
-    // doSmth();
-    window.$(window).on("scroll resize", function(){
-        window.console.log(window.$('#sidebar-container').height());
-    });
-    button.addEventListener('click', function(event) {
-        window.console.log(event);
-    });
-}*/
-
-/**
- *
- */
-/*function doSmth() {
-    let sideContainer = window.$("#sidebar-container");
-
-}*/
 
 /**
  *

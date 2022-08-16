@@ -174,7 +174,7 @@ class exploration_plan
 
         $record = new \stdClass();
         foreach ($this as $key => $value) {
-            if (!is_null($value) && $key != 'media') {
+            if ($key != 'media') {
                 $record->$key = $value;
             }
         }

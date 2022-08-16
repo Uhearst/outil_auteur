@@ -19,7 +19,7 @@ if (isset($_POST)) {
             $index = $i;
         }
     }
-    echo json_encode(array('success' => 1, 'data' => $subquestion_plans, 'sectionIndex' => $i));
+    echo json_encode(array('success' => 1, 'data' => $subquestion_plans, 'sectionIndex' => $index));
 } else {
     echo json_encode(array('success' => 0));
 }

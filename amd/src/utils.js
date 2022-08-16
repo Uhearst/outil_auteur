@@ -166,7 +166,8 @@ export function appendAnchorToForm(anchor) {
         input.setAttribute("name", "anchor");
         input.setAttribute("id", "anchor");
         input.setAttribute("value", anchor);
-        document.getElementById('form_container').appendChild(input);
+        const formContainer = document.getElementById('form_container');
+        formContainer.appendChild(input);
     } else {
         anchorInput.setAttribute('value', anchor);
     }

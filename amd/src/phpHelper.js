@@ -4,6 +4,7 @@ import {dictionnary} from "./language/format_udehauthoring_fr";
 import {validateSectionForm} from "./validator/sectionValidator";
 
 let counterElement = 0;
+let counterSubElement = 0;
 let element = null;
 let elementName = null;
 let subElementsName = null;
@@ -71,9 +72,9 @@ function handleInit(courseId, sectionId, subQuestionId, type, toolList) {
                       counterElement = i;
                    }
                 });
-                updatePreviewHeader();
-                subElementsName.forEach(subElementsName => {
-                   updateCurrentAccordions(subElementsName);
+                updatePreviewHeader(false);
+                subElementsName.forEach(subElementName => {
+                   updateCurrentAccordions(subElementName);
                 });
              },
              error: function() {
@@ -95,12 +96,13 @@ function handleInit(courseId, sectionId, subQuestionId, type, toolList) {
                 parsedResponse.data.forEach(function(subQuestion, i) {
                    if (parseInt(subQuestion.id) === subQuestionId) {
                       element = subQuestion;
-                      counterElement = i;
+                      counterElement = parsedResponse.sectionIndex;
+                      counterSubElement = i;
                    }
                 });
-                updatePreviewHeader();
-                subElementsName.forEach(subElementsName => {
-                   updateCurrentAccordions(subElementsName, parsedResponse.index);
+                updatePreviewHeader(true);
+                subElementsName.forEach(subElementName => {
+                   updateCurrentAccordions(subElementName);
                 });
              },
              error: function() {
@@ -236,18 +238,23 @@ function changeTag(element, tag) {
 }
 
 /**
- *
+ * @param {boolean} isSubquestion
  */
-function updatePreviewHeader() {
+function updatePreviewHeader(isSubquestion) {
    let headerPreview = document.querySelector('[id*="preview_header"]');
-   headerPreview.firstElementChild.innerHTML = elementName + (counterElement + 1) + ' - ' + removeTags(element.title);
+   if (isSubquestion) {
+      headerPreview.firstElementChild.innerHTML = elementName + (counterElement + 1) + '.'
+          + (counterSubElement + 1) + ' - ' + removeTags(element.title);
+   } else {
+      headerPreview.firstElementChild.innerHTML = elementName + (counterElement + 1) + ' - ' + removeTags(element.title);
+   }
+
 }
 
 /**
  * @param {string} subElementName
- * @param {String} sectionIndex
  */
-function updateCurrentAccordions(subElementName, sectionIndex = null) {
+function updateCurrentAccordions(subElementName) {
    let accordions = null;
    let valueForAccordion = null;
    let valueForDiv = null;
@@ -289,9 +296,8 @@ function updateCurrentAccordions(subElementName, sectionIndex = null) {
           subElementName + ' ' + (counterElement + 1) + '.' + (accordions.length + 1);
    } else {
       addContainer.firstElementChild.firstElementChild.innerHTML =
-          subElementName + ' ' + (sectionIndex + 1) + '.' + (counterElement + 1) + '.' + (accordions.length + 1);
+          subElementName + ' ' + (counterElement + 1) + '.' + (counterSubElement + 1) + '.' + (accordions.length + 1);
    }
-
 }
 
 /**
@@ -306,13 +312,20 @@ function updateAccordionText(headerLink, subElementName, counter, array, hasTitl
       let title = array[counter].title;
       let headerContent = '';
       if (hasTitle) {
-         headerContent = subElementName + (counterElement + 1) + '.' + (counter + 1) + ' - ' + removeTags(title);
+         headerContent = subElementName === dictionnary.trame
+             ? subElementName + (counterElement + 1) + '.' + (counter + 1) + ' - ' + removeTags(title)
+             // eslint-disable-next-line max-len
+             : subElementName + (counterElement + 1) + '.' + (counterSubElement + 1) + '.' + (counter + 1) + ' - ' + removeTags(title);
       } else {
-         headerContent = subElementName + (counterElement + 1) + '.' + (counter + 1);
+         headerContent = subElementName === dictionnary.trame
+             ? subElementName + (counterElement + 1) + '.' + (counter + 1)
+             : subElementName + (counterElement + 1) + '.' + (counterSubElement + 1) + '.' + (counter + 1);
       }
       headerLink.innerHTML = headerContent.length > 70 ? headerContent.substring(0, 70) + '...' : headerContent;
    } else {
-      headerLink.innerHTML = subElementName + (counterElement + 1) + '.' + (counter + 1);
+      headerLink.innerHTML = subElementName === dictionnary.trame
+      ? subElementName + (counterElement + 1) + '.' + (counter + 1)
+      : subElementName + (counterElement + 1) + '.' + (counterSubElement + 1) + '.' + (counter + 1);
    }
 }
 

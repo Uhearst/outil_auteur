@@ -218,7 +218,6 @@ function appendExplorationLinkToRedactForm(toolList) {
             select.disabled = true;
             explorationId = explorationIdHolder.value;
         }
-
         let container = document.createElement('div');
         container.setAttribute('class', 'form-group fitem');
         let linkContainer = document.createElement('a');
@@ -229,7 +228,6 @@ function appendExplorationLinkToRedactForm(toolList) {
         linkContainer.setAttribute('id', 'exploration_tool_name_' + toolIndex);
         linkContainer.innerHTML = toolList[toolIndex];
         container.appendChild(linkContainer);
-
         urlDisplayer.children[1].children[0].children[1].insertBefore(
             container, urlDisplayer.children[1].children[0].children[1].firstElementChild);
     });

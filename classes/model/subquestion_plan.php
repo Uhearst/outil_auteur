@@ -73,16 +73,18 @@ class subquestion_plan
                     $explorationplan->id = $explorationid;
                 }
 
-                $explorationplan->title = $data->exploration_title[$ii];
-                $explorationplan->question = $data->exploration_question[$ii];
-                $explorationplan->activitytype = $data->exploration_activity_type[$ii];
+                $explorationplan->title = $ii >= count($data->exploration_title) ? '' : $data->exploration_title[$ii];
+                $explorationplan->toolcmid = $ii >= count($data->exploration_tool_cmid) ? '' : $data->exploration_tool_cmid[$ii];
+                $explorationplan->tooltype = $ii >= count($data->tool_group) ? 0 : $data->tool_group[$ii]['exploration_tool'];
+                $explorationplan->question = $ii >= count($data->exploration_question) ? '' : $data->exploration_question[$ii];
+                $explorationplan->activitytype = $ii >= count($data->exploration_activity_type) ? '' : $data->exploration_activity_type[$ii];
                 $explorationplan->activityfreetype = $data->exploration_activity_free_type[$ii]['text'];
-                $explorationplan->temporality = $data->exploration_temporality[$ii];
-                $explorationplan->location = $data->exploration_location[$ii];
-                $explorationplan->grouping = $data->exploration_grouping[$ii];
+                $explorationplan->temporality = $ii >= count($data->exploration_temporality) ? '' : $data->exploration_temporality[$ii];
+                $explorationplan->location = $ii >= count($data->exploration_location) ? '' : $data->exploration_location[$ii];
+                $explorationplan->grouping = $ii >= count($data->exploration_grouping) ? '' : $data->exploration_grouping[$ii];
                 $explorationplan->ismarked = $data->exploration_marked[$ii];
-                $explorationplan->evaluationtype = $data->exploration_evaluation_type[$ii];
-                $explorationplan->length = $data->exploration_length[$ii];
+                $explorationplan->evaluationtype = $ii >= count($data->exploration_evaluation_type) ? '' : $data->exploration_evaluation_type[$ii];
+                $explorationplan->length = $ii >= count($data->exploration_length) ? '' : $data->exploration_length[$ii];
                 $explorationplan->instructions = $data->exploration_instructions[$ii]['text'];
 
                 $subquestionplan->explorations[] = $explorationplan;
@@ -220,7 +222,7 @@ class subquestion_plan
 
         $record = new \stdClass();
         foreach ($this as $key => $value) {
-            if (!is_null($value) && $key != 'vignette') {
+            if ($key != 'vignette') {
                 $record->$key = $value;
             }
         }
@@ -248,50 +250,51 @@ class subquestion_plan
         }
 
         // save exploration
-        $input_explorations_id = [];
-        $exploration_record_ids = $DB->get_records('udehauthoring_exploration', ['audehsubquestionid' => $this->id], '', 'id');
+        if($fromregularsave) {
+            $input_explorations_id = [];
+            $exploration_record_ids = $DB->get_records('udehauthoring_exploration', ['audehsubquestionid' => $this->id], '', 'id');
 
-        if ($this->explorations) {
-            foreach ($this->explorations as $exploration) {
-                $input_explorations_id[$exploration->id] = $exploration->id;
-                if ($exploration->id && empty($exploration->instructions)) {
-                    $exploration->delete();
-                } else {
-                    $exploration->save();
+            if ($this->explorations) {
+                foreach ($this->explorations as $exploration) {
+                    $input_explorations_id[$exploration->id] = $exploration->id;
+                    if ($exploration->id && empty($exploration->instructions)) {
+                        $exploration->delete();
+                    } else {
+                        $exploration->save();
+                    }
+                }
+            }
+
+            foreach ($exploration_record_ids as $exploration_record_id) {
+                if (!in_array($exploration_record_id->id, $input_explorations_id)) {
+                    $explorationplan = \format_udehauthoring\model\exploration_plan::instance_by_id($exploration_record_id->id);
+                    $explorationplan->delete();
+                }
+            }
+
+            // save resources
+            $input_resources_id = [];
+            $resource_record_ids = $DB->get_records('udehauthoring_resource', ['audehsubquestionid' => $this->id], '', 'id');
+
+            if ($this->resources) {
+                foreach ($this->resources as $resource) {
+                    $input_resources_id[$resource->id] = $resource->id;
+                    if ($resource->id && empty($resource->title)) {
+                        $resource->delete();
+                    } else {
+                        $resource->save($context, true);
+                    }
+
+                }
+            }
+
+            foreach ($resource_record_ids as $resource_record_id) {
+                if (!in_array($resource_record_id->id, $input_resources_id)) {
+                    $resourceplan = \format_udehauthoring\model\resource_plan::instance_by_id($resource_record_id->id);
+                    $resourceplan->delete();
                 }
             }
         }
-
-        foreach($exploration_record_ids as $exploration_record_id) {
-            if (!in_array($exploration_record_id->id, $input_explorations_id)) {
-                $explorationplan = \format_udehauthoring\model\exploration_plan::instance_by_id($exploration_record_id->id);
-                $explorationplan->delete();
-            }
-        }
-
-        // save resources
-        $input_resources_id = [];
-        $resource_record_ids = $DB->get_records('udehauthoring_resource', ['audehsubquestionid' => $this->id], '', 'id');
-
-        if($this->resources) {
-            foreach ($this->resources as $resource) {
-                $input_resources_id[$resource->id] = $resource->id;
-                if ($resource->id && empty($resource->title)) {
-                    $resource->delete();
-                } else {
-                    $resource->save($context, true);
-                }
-
-            }
-        }
-
-        foreach($resource_record_ids as $resource_record_id) {
-            if (!in_array($resource_record_id->id, $input_resources_id)) {
-                $resourceplan = \format_udehauthoring\model\resource_plan::instance_by_id($resource_record_id->id);
-                $resourceplan->delete();
-            }
-        }
-
     }
 
     public function delete() {

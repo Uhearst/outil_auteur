@@ -94,7 +94,7 @@ $toolList = [];
 foreach ($subquestionplan->explorations as $exploration) {
     if($exploration->toolcmid !== null) {
         $info = get_fast_modinfo($course);
-        if ($info->cms[$exploration->toolcmid]) {
+        if ($exploration->toolcmid !== "" && $exploration->toolcmid !== 0 && $info->cms[$exploration->toolcmid]) {
             $toolList[] = $info->cms[$exploration->toolcmid]->name;
         } else {
             $toolList[] = '';

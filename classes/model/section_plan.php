@@ -210,20 +210,24 @@ class section_plan
         global $DB;
 
         $record = new \stdClass();
-        if (!is_null($this->isembed)) {
-            $record->isembed = $this->isembed;
-        }
+
         foreach ($this as $key => $value) {
-            if (gettype($value) != 'array' && !is_null($value) && ($key != 'vignette' && $key != 'introduction')) {
-                if($fromregularsave) {
-                    if ($key != 'title' && $key != 'question' && $key != 'description') {
+            if (gettype($value) != 'array' && ($key != 'vignette' && $key != 'introduction')) {
+
+                    if($fromregularsave) {
+                        if ($key != 'title' && $key != 'question' && $key != 'description') {
+                            $record->$key = $value;
+                        }
+                    } else {
                         $record->$key = $value;
                     }
-                } else {
-                    $record->$key = $value;
-                }
 
             }
+        }
+        if (!is_null($this->isembed)) {
+            $record->isembed = $this->isembed;
+        } else {
+            $record->isembed = false;
         }
         if($fromregularsave) {
             utils::file_save_draft_area_files($this->vignette, $context->id, 'format_udehauthoring', 'sectionvignette',
@@ -248,7 +252,6 @@ class section_plan
             $input_subquestions_id = [];
             $subquestion_record_ids = $DB->get_records('udehauthoring_sub_question', ['audehsectionid' => $this->id], '', 'id');
 
-            // save subquestion
             if($this->subquestions) {
                 foreach ($this->subquestions as $subquestion) {
                     $input_subquestions_id[$subquestion->id] = $subquestion->id;
