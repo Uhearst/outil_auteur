@@ -296,3 +296,4 @@ $string['syllabuscontact'] = 'Horaires de contact : ';
 $string['syllabuszoomteacher'] = 'Lien Zoom personnel du professeur : ';
 $string['syllabuszoomcourse'] = 'Lien Zoom du cours : ';
 
+$string['titlegradecategoryignore'] = 'Activités de prévisualisation (ignorées)';

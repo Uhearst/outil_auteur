@@ -2,9 +2,15 @@
 
 namespace format_udehauthoring\publish;
 
+use format_udehauthoring\model\evaluationtool_plan;
 use format_udehauthoring\model\exploration_plan;
+use format_udehauthoring\model\explorationtool_plan;
 use format_udehauthoring\publish\content\syllabus;
 use format_udehauthoring\utils;
+
+require_once($CFG->libdir . '/gradelib.php');
+require_once("{$CFG->libdir}/grade/grade_category.php");
+require_once($CFG->dirroot.'/grade/edit/tree/lib.php');
 
 class content
 {
@@ -38,6 +44,106 @@ class content
         $this->publish_section_pages($cms);
         $this->publish_subquestion_pages($cms);
         $this->publish_evaluation_pages($cms);
+
+        // organize grade items
+
+        $modinfo = get_fast_modinfo($this->course, -1);
+
+        $cms = [];
+        foreach ($modinfo->cms as $cm) {
+            if (!empty($cm->idnumber)) {
+                $cms[$cm->idnumber] = $cm;
+            }
+        }
+
+        // Check if category already exists
+        $grade_category = \grade_category::fetch([
+            'fullname' => get_string('titlegradecategoryignore', 'format_udehauthoring'),
+            'courseid' => $this->course->id
+        ]);
+
+        // Create category
+        if (!$grade_category) {
+            $grade_category = new \grade_category(['courseid' => $this->course->id], false);
+            $grade_category->apply_default_settings();
+            $grade_category->apply_forced_settings();
+        }
+
+        \grade_edit_tree::update_gradecategory($grade_category, (object)[
+            'fullname' => get_string('titlegradecategoryignore', 'format_udehauthoring'),
+            'aggregation' => GRADE_AGGREGATE_SUM,
+            'aggregateonlygraded' => 1,
+            'aggregateoutcomes' => 0,
+            'droplow' => 0,
+            'grade_item_itemname' => '',
+            'grade_item_iteminfo' => '',
+            'grade_item_idnumber' => '',
+            'grade_item_gradetype' => GRADE_TYPE_VALUE,
+            'grade_item_grademax' => 100,
+            'grade_item_grademin' => 0,
+            'grade_item_gradepass' => '0',
+            'grade_item_display' => '0',
+            'grade_item_decimals' => '-1',
+            'grade_item_hiddenuntil' => 0,
+            'grade_item_locktime' => 0,
+            'grade_item_weightoverride' => "1",
+            'grade_item_aggregationcoef2' => "0",
+        ]);
+
+        $grade_category->set_hidden(1, true);
+
+        // move all preview and tool grade items to the category
+        global $DB;
+        $last_sortorder = $DB->get_field_select('grade_items', 'MAX(sortorder)', "courseid = ?", array($this->course->id));
+        $grade_category->move_after_sortorder($last_sortorder);
+        if ($this->target instanceof target\preview) {
+            foreach($cms as $idnumber => $cm) {
+                if (!$this->target->unpack_cmidnumber($idnumber)) {
+                    continue;
+                }
+
+                $gi = new \grade_item([
+                        'itemmodule' => $cm->modname,
+                        'iteminstance' => $cm->instance
+                ]);
+
+                if ($gi->id) {
+                    $gi->categoryid = $grade_category->id;
+                    $gi->update();
+                }
+            }
+
+            foreach ($this->course_plan->evaluations as $evaluation) {
+                $tool = evaluationtool_plan::instance_by_audehevaluationid($evaluation->id);
+                if ($tool) {
+                    $this->organize_grade_item($grade_category->id, $tool->tooltype, $tool->toolid);
+                }
+            }
+
+            foreach ($this->course_plan->sections as $section) {
+                foreach ($section->subquestions as $subquestion) {
+                    foreach ($subquestion->explorations as $exploration) {
+                        $tool = explorationtool_plan::instance_by_audehexplorationid($exploration->id);
+                        if ($tool) {
+                            $this->organize_grade_item($grade_category->id, $tool->tooltype, $tool->toolid);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private function organize_grade_item($categoryid, $modname, $instanceid, $hidden=1) {
+        $gi = new \grade_item([
+            'itemmodule' => $modname,
+            'iteminstance' => $instanceid
+        ]);
+
+        if ($gi->id) {
+            $gi->categoryid = $categoryid;
+            $gi->set_hidden($hidden);
+            $gi->update();
+        }
     }
 
     /**
@@ -709,6 +815,9 @@ class content
 
                             $DB->set_field($cmsource->modname, 'name', $cmsource->name, ['id' => $cms[$cmidnumber]->instance]);
                             $DB->set_field('course_modules', 'idnumber', $cmidnumber, ['id' => $cms[$cmidnumber]->id]);
+
+                            $graderoot = \grade_category::fetch_course_category($this->course->id);
+                            $this->organize_grade_item($graderoot->id, $cms[$cmidnumber]->modname, $cms[$cmidnumber]->instance, 0);
                         }
 
                         $toolurl = new \moodle_url('/mod/' . $cms[$cmidnumber]->modname . '/view.php', ['id' => $cms[$cmidnumber]->id]);
@@ -727,7 +836,13 @@ class content
                             <table>
                                 <tr>
                                     <th><?php print_string('titleexplorationtype', 'format_udehauthoring'); ?></th>
-                                    <td><?php echo exploration_plan::get_activity_type_from_index($exploration->activitytype); ?></td>
+                                    <td>
+                                        <?php if($exploration->activitytype == count(exploration_plan::activity_type_list()) - 1): ?>
+                                            <?php echo $exploration->activityfreetype; ?>
+                                        <?php else: ?>
+                                            <?php echo exploration_plan::get_activity_type_from_index($exploration->activitytype); ?>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                                 <?php if (!empty($duration = strip_tags($exploration->length))): ?>
                                     <tr>
@@ -943,6 +1058,9 @@ class content
 
                     $DB->set_field($cmsource->modname, 'name', $cmsource->name, ['id' => $cms[$toolidnumber]->instance]);
                     $DB->set_field('course_modules', 'idnumber', $toolidnumber, ['id' => $cms[$toolidnumber]->id]);
+
+                    $graderoot = \grade_category::fetch_course_category($this->course->id);
+                    $this->organize_grade_item($graderoot->id, $cms[$toolidnumber]->modname, $cms[$toolidnumber]->instance, 0);
                 }
 
                 $toolurl = new \moodle_url('/mod/' . $cms[$toolidnumber]->modname . '/view.php', ['id' => $cms[$toolidnumber]->id]);

@@ -22,9 +22,9 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version =  2022062000;
+$plugin->version =  2022081700;
 $plugin->requires = 2021051703;
 $plugin->component = 'format_udehauthoring';
 
-$plugin->release  = '1.0 Stable (Build - 2022062000)';
+$plugin->release  = '1.0.1 Stable (Build - 2022081700)';
 $plugin->maturity  = MATURITY_STABLE;

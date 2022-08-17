@@ -296,3 +296,5 @@ $string['syllabusmobile'] = 'Mobile: ';
 $string['syllabuscontact'] = 'Contact hours: ';
 $string['syllabuszoomteacher'] = 'Professor’s zoom link: ';
 $string['syllabuszoomcourse'] = 'Course’s zoom link: ';
+
+$string['titlegradecategoryignore'] = 'Preview activities (ignored)';
