@@ -18,9 +18,9 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $plugin->add_child($format_udehauthoring);
 
         // Course backup
-        // todo what to do with units???
+
         $course_plan = new backup_nested_element('udeha_course', ['id'], [
-            'unit', 'code', 'credit', 'bloc', 'teachername', 'teacherphone', 'teachercellphone', 'teacheremail',
+            'code', 'credit', 'bloc', 'teachername', 'teacherphone', 'teachercellphone', 'teacheremail',
             'teachercontacthours', 'teacherzoomlink', 'coursezoomlink',
             'title', 'question', 'embed', 'isembed', 'description', 'problematic', 'place', 'method', 'bibliography',
             'attendance', 'plagiarism', 'disponibility', 'annex', 'timemodified'
@@ -28,6 +28,16 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $format_udehauthoring->add_child($course_plan);
         $course_plan->set_source_table('udehauthoring_course', ['courseid' => backup::VAR_COURSEID]);
         $course_plan->annotate_files('format_udehauthoring', 'courseintroduction', null);
+
+        // Course units backup
+        $units = new backup_nested_element('udeha_units');
+        $course_plan->add_child($units);
+
+        $unit = new backup_nested_element('udeha_unit', ['id'], [
+            'audehunitid', 'timemodified'
+        ]);
+        $units->add_child($unit);
+        $unit->set_source_table('udehauthoring_unit', ['audehcourseid' => backup::VAR_PARENTID]);
 
         // Teaching objectives backup
 
@@ -76,6 +86,13 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $evaluation_plan->set_source_table('udehauthoring_evaluation', ['audehcourseid' => backup::VAR_PARENTID]);
         $evaluation_plan->annotate_files('format_udehauthoring', 'evaluationintroduction', 'id');
 
+        // Evaluations tool backup
+        $eval_tool = new backup_nested_element('udeha_eval_tool', ['id'], [
+            'toolid', 'tooltype', 'timemodified'
+        ]);
+        $evaluation_plan->add_child($eval_tool);
+        $eval_tool->set_source_table('udehauthoring_eval_tool', ['audehevaluationid' => backup::VAR_PARENTID]);
+
         // Subquestions backup
 
         $subquestion_plans = new backup_nested_element('udeha_subquestions');
@@ -94,7 +111,7 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $subquestion_plan->add_child($exploration_plans);
 
         $exploration_plan = new backup_nested_element('udeha_exploration', ['id'], [
-            'title', 'question', 'activitytype', 'temporality', 'location', 'grouping', 'ismarked', 'evaluationtype',
+            'title', 'question', 'activitytype', 'activityfreetype', 'temporality', 'location', 'grouping', 'ismarked', 'evaluationtype',
             'length', 'instructions', 'timemodified'
         ]);
         $exploration_plans->add_child($exploration_plan);

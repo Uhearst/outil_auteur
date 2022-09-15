@@ -4,6 +4,8 @@
 namespace format_udehauthoring\model;
 use format_udehauthoring\utils;
 
+global $CFG;
+
 require_once $CFG->dirroot.  '/lib/resourcelib.php';
 
 class subquestion_plan
@@ -222,8 +224,16 @@ class subquestion_plan
 
         $record = new \stdClass();
         foreach ($this as $key => $value) {
-            if ($key != 'vignette') {
-                $record->$key = $value;
+            if ($key != 'vignette' && $key != 'timemodified') {
+                if($fromregularsave) {
+                    if ($key != 'title' && $key != 'timemodified') {
+                        $record->$key = $value;
+                    }
+                } else {
+                    if (($key == 'title' || $key == 'id' || $key == 'audehsectionid') && $key != 'timemodified') {
+                        $record->$key = $value;
+                    }
+                }
             }
         }
         if($fromregularsave) {
@@ -284,7 +294,6 @@ class subquestion_plan
                     } else {
                         $resource->save($context, true);
                     }
-
                 }
             }
 
@@ -299,9 +308,25 @@ class subquestion_plan
 
     public function delete() {
         global $DB;
-        foreach ($this->explorations as $exploration){
+        foreach ($this->explorations as $exploration) {
             $exploration->delete();
         }
+
+        utils::db_bump_timechanged('udehauthoring_section', $this->audehsectionid);
+
+
+        $following_siblings = $DB->get_records_sql(
+            " SELECT id 
+                  FROM {udehauthoring_sub_question}
+                  WHERE audehsectionid = ?
+                  AND id > ?",
+            [ $this->audehsectionid, $this->id ]
+        );
+
+        foreach ($following_siblings as $following_sibling) {
+            utils::db_bump_timechanged('udehauthoring_sub_question', $following_sibling->id);
+        }
+
         return $DB->delete_records('udehauthoring_sub_question', ['id' => $this->id]);
     }
 }

@@ -129,7 +129,7 @@ $jj = 0;
 while ($sectionplan->subquestions[$jj]->id != $subquestionplan->id) {
     ++$jj;
 }
-if ($ii === count($sectionplan->subquestions)) {
+if ($jj === count($sectionplan->subquestions)) {
     print_error('subquestionmissing');
 }
 $subquestionindex = $jj;

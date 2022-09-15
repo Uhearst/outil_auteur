@@ -230,6 +230,8 @@ if ($mform->is_cancelled()) {
         $evaltool->save();
     }
 
+    \format_udehauthoring\utils::refreshPreview($course->id);
+
     if (isset($fromform->submitbutton)) {
         $url = new moodle_url("/mod/$module->name/view.php", array('id' => $fromform->coursemodule, 'forceview' => 1));
         if (empty($fromform->showgradingmanagement)) {

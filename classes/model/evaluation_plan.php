@@ -77,6 +77,7 @@ class evaluation_plan
         $evaluationplan->toolcmid= $relatedtoolcmid;
         $relatedtooltype = evaluationtool_plan::get_related_tool_type($record->id);
         $evaluationplan->tooltype= $relatedtooltype;
+        $evaluationplan->timemodified = $record->timemodified;
 
         return $evaluationplan;
     }
@@ -383,18 +384,28 @@ class evaluation_plan
         foreach ($this as $key => $value) {
             if ($key != 'introduction' && $key != 'files' && $key != 'learningobjectiveids') {
                 if($fromregularsave) {
-                    if ($key != 'title' && $key != 'description') {
+                    if ($key != 'title' && $key != 'description' && $key != 'weight' && $key != 'timemodified') {
                         $record->$key = $value;
                     }
-                } else {
+                } else if(($key == 'title'
+                        || $key == 'description'
+                        || $key == 'weight'
+                        || $key == 'id'
+                        || $key == 'audehcourseid'
+                        || $key == 'audehsectionid') && $key != 'timemodified') {
                     $record->$key = $value;
                 }
             }
+            if ($key == 'audehsectionid' && is_null($value)) {
+                // may happen if section was deleted
+                $record->$key = 0;
+            }
         }
-        if($this->isembed === '' || $this->isembed === null) {
-            $this->isembed = 0;
+        if (!is_null($this->isembed)) {
+            $record->isembed = $this->isembed;
+        } else {
+            $record->isembed = false;
         }
-        $record->isembed = $this->isembed;
         if($fromregularsave) {
             utils::file_save_draft_area_files($this->introduction, $context->id, 'format_udehauthoring', 'evaluationintroduction',
                 $this->id);
@@ -403,6 +414,13 @@ class evaluation_plan
         }
 
         if (isset($record->id)) {
+            $oldsectionid = $DB->get_field('udehauthoring_evaluation', 'audehsectionid', [
+                'id' => $record->id
+            ]);
+            if ($oldsectionid && $oldsectionid != $this->audehsectionid) {
+                utils::db_bump_timechanged('udehauthoring_section', $oldsectionid);
+            }
+
             utils::db_update_if_changes('udehauthoring_evaluation', $record);
         } else {
             $record->timemodified = time();
@@ -426,6 +444,11 @@ class evaluation_plan
 
     public function delete() {
         global $DB;
+
+        utils::db_bump_timechanged('udehauthoring_course', $this->audehcourseid);
+        if ($this->audehsectionid) {
+            utils::db_bump_timechanged('udehauthoring_section', $this->audehsectionid);
+        }
 
         $DB->delete_records('udehauthoring_evaluation_obj', ['audehevaluationid' => $this->id]);
 

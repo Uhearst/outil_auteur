@@ -201,6 +201,8 @@ class explorationtool_plan
     public function delete() {
         global $DB;
 
+        utils::db_bump_timechanged('udehauthoring_exploration', $this->audehexplorationid);
+
         return $DB->delete_records('udehauthoring_exp_tool', ['audehexplorationid' => $this->audehexplorationid]);
     }
 

@@ -26,9 +26,9 @@ class syllabus
         if (!isset($this->content->presentation)) {
             $units = unit_plan::instance_all_by_course_plan_id($this->courseplan->id);
 
-            $loopResult = "";
+            $unit_names = [];
             foreach($units as $unit) {
-                $loopResult .= unit_config::getValueById($unit->audehunitid);
+                $unit_names[] = unit_config::getValueById($unit->audehunitid);
             }
 
             ob_start();
@@ -38,7 +38,7 @@ class syllabus
                 <div><?php echo $this->courseplan->code; ?></div>
                 <h1><?php echo $this->courseplan->title; ?></h1>
                 <div>
-                    <?php echo $loopResult; ?><br>
+                    <?php echo implode(', ', $unit_names); ?><br>
                     <?php print_string('syllabusblock', 'format_udehauthoring', $this->courseplan->bloc+1); ?>
                 </div>
             </div>

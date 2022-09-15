@@ -213,13 +213,14 @@ class section_plan
 
         foreach ($this as $key => $value) {
             if (gettype($value) != 'array' && ($key != 'vignette' && $key != 'introduction')) {
-
                     if($fromregularsave) {
-                        if ($key != 'title' && $key != 'question' && $key != 'description') {
+                        if ($key != 'title' && $key != 'question' && $key != 'description' && $key != 'timemodified') {
                             $record->$key = $value;
                         }
                     } else {
-                        $record->$key = $value;
+                        if (($key == 'title' || $key == 'question' || $key == 'description' || $key == 'id' || $key == 'audehcourseid') && $key != 'timemodified') {
+                            $record->$key = $value;
+                        }
                     }
 
             }
@@ -275,6 +276,26 @@ class section_plan
 
     public function delete() {
         global $DB;
+
+        utils::db_bump_timechanged('udehauthoring_course', $this->audehcourseid);
+
+        $DB->execute(' UPDATE {udehauthoring_evaluation}
+            SET audehsectionid = 0
+            WHERE audehsectionid = ?
+        ', [$this->id]);
+
+        // bump all following siblings
+        $following_siblings = $DB->get_records_sql(
+            " SELECT id 
+                  FROM {udehauthoring_section}
+                  WHERE audehcourseid = ?
+                  AND id > ?",
+            [ $this->audehcourseid, $this->id ]
+        );
+
+        foreach ($following_siblings as $following_sibling) {
+            utils::db_bump_timechanged('udehauthoring_section', $following_sibling->id);
+        }
 
         return $DB->delete_records('udehauthoring_section', ['id' => $this->id]);
     }

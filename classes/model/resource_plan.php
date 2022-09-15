@@ -70,7 +70,7 @@ class resource_plan
 
         $record = new \stdClass();
         foreach ($this as $key => $value) {
-            if ($key != 'vignette') {
+            if ($key != 'vignette' && $key != 'timemodified') {
                 $record->$key = $value;
             }
         }
@@ -90,6 +90,23 @@ class resource_plan
 
     public function delete() {
         global $DB;
+
+
+        utils::db_bump_timechanged('udehauthoring_sub_question', $this->audehsubquestionid);
+
+        // bump all following siblings
+        $following_siblings = $DB->get_records_sql(
+            " SELECT id 
+                  FROM {udehauthoring_resource}
+                  WHERE audehsubquestionid = ?
+                  AND id > ?",
+            [ $this->audehsubquestionid, $this->id ]
+        );
+
+        foreach ($following_siblings as $following_sibling) {
+            utils::db_bump_timechanged('udehauthoring_resource', $following_sibling->id);
+        }
+
 
         return $DB->delete_records('udehauthoring_resource', ['id' => $this->id]);
     }

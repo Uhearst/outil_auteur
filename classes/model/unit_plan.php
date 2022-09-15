@@ -86,6 +86,8 @@ class unit_plan {
     public function delete() {
         global $DB;
 
+        utils::db_bump_timechanged('udehauthoring_course', $this->audehcourseid);
+
         return $DB->delete_records('udehauthoring_unit', ['id' => $this->id]);
     }
 

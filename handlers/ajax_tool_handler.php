@@ -10,6 +10,8 @@ if (isset($_POST)) {
     $cmid = $_POST["cmid"];
     $id = $_POST["id"];
     $type = $_POST["type"];
+    // find course id
+    list($course, $cm) = get_course_and_cm_from_cmid($cmid);
     course_delete_module($cmid, true);
     $tool = null;
     if(intval($type) === 1) {
@@ -18,6 +20,8 @@ if (isset($_POST)) {
         $tool = \format_udehauthoring\model\evaluationtool_plan::instance_by_audehevaluationid($id);
     }
     $tool->delete();
+
+    \format_udehauthoring\utils::refreshPreview($course->id);
 
     echo json_encode(array('success' => 1));
 } else {

@@ -84,7 +84,7 @@ function appendDataToSubmit() {
                 );
                 let explorationIdHolder = document.querySelector('[name="exploration_id[' + index + ']"]');
                 if (explorationIdHolder === null || explorationIdHolder.value === "0") {
-                    addNotification('Vous devez enregistré l\'exploration avant d\'y associer un outil', 2);
+                    addNotification('Vous devez enregistrer l\'exploration avant d\'y associer un outil.', 2);
                     return;
                 }
             }

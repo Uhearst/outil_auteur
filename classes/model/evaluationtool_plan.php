@@ -169,6 +169,8 @@ class evaluationtool_plan
     public function delete() {
         global $DB;
 
+        utils::db_bump_timechanged('udehauthoring_evaluation', $this->audehevaluationid);
+
         return $DB->delete_records('udehauthoring_eval_tool', ['audehevaluationid' => $this->audehevaluationid]);
     }
 

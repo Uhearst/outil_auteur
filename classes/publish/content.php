@@ -2,6 +2,7 @@
 
 namespace format_udehauthoring\publish;
 
+use format_udehauthoring\model\evaluation_plan;
 use format_udehauthoring\model\evaluationtool_plan;
 use format_udehauthoring\model\exploration_plan;
 use format_udehauthoring\model\explorationtool_plan;
@@ -356,6 +357,7 @@ class content
         }, []);
         $maxtimemodified = $this->maxtimemodified(
             $this->course_plan,
+            ...$this->course_plan->units,
             ...$this->course_plan->teachingobjectives,
             ...$alllearningobjectives,
             ...$this->course_plan->sections,
@@ -630,7 +632,13 @@ class content
                 $context_module->id, 'mod_page', 'content', 0
             );
 
-            $maxtimemodified = $this->maxtimemodified($section, ...$section->subquestions);
+            if ($evaluation = evaluation_plan::instance_by_section_plan_id($section->id)) {
+                $maxtimemodified = $this->maxtimemodified($section, $evaluation, ...$section->subquestions);
+            } else {
+                $maxtimemodified = $this->maxtimemodified($section, ...$section->subquestions);
+            }
+
+
 
             if (!$fileschanged && $page->timemodified > $maxtimemodified && $page->content !== structure::$CONTENT_PLACEHOLDER) {
                 continue;
@@ -760,7 +768,19 @@ class content
 
                 $fileshtml = utils::renderFileAreaHTML($context_module->id, 'mod_page', 'content', 0);
 
-                $maxtimemodified = $this->maxtimemodified($subquestion, ...$subquestion->explorations, ...$subquestion->resources);
+                $exp_tools = [];
+                foreach ($subquestion->explorations as $exploration) {
+                    $exp_tool = explorationtool_plan::instance_by_audehexplorationid($exploration->id);
+                    if ($exp_tool) {
+                        $exp_tools[] = $exp_tool;
+                    }
+                }
+
+                $maxtimemodified = $this->maxtimemodified(
+                        $subquestion,
+                        ...$subquestion->explorations,
+                        ...$exp_tools,
+                        ...$subquestion->resources);
 
                 if (!$haschanged && $page->timemodified > $maxtimemodified && $page->content !== structure::$CONTENT_PLACEHOLDER) {
                     continue;
@@ -968,7 +988,7 @@ class content
         $toolidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, false, false, true);
         $cminfo = $cms[$toolidnumber];
         $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
-        $maxtimemodified = $this->maxtimemodified(...$this->course_plan->evaluations);
+        $maxtimemodified = $this->maxtimemodified($this->course_plan, ...$this->course_plan->evaluations);
 
         if ($page->timemodified < $maxtimemodified || $page->content === structure::$CONTENT_PLACEHOLDER) {
             $parts_html = '';
@@ -1113,7 +1133,7 @@ class content
                 </div>
                 <?php
 
-                // todo loop files
+                // loop files
                 $fs = get_file_storage();
                 $files = $fs->get_area_files($context_module->id, 'mod_page', 'content', 0);
 
@@ -1147,11 +1167,10 @@ class content
 
                 ?>
                 <div class="udeha-evaluation-elements">
-                    <?php if(!empty($evaluation->instructions) || !empty($toollink)): ?>
+                    <?php if(!empty($evaluation->instructions)): ?>
                     <div class="udeha-evaluation-instructions">
                         <h3><?php print_string('evaluationinstructions', 'format_udehauthoring'); ?></h3>
                         <?php echo $evaluation->instructions; ?>
-                        <?php echo $toollink; ?>
                     </div>
                     <?php endif; ?>
                     <?php if(!empty($evaluation->criteria)): ?>
@@ -1161,6 +1180,9 @@ class content
                     </div>
                     <?php endif; ?>
                 </div>
+                <?php if (!empty($toollink)): ?>
+                    <?php echo $toollink; ?>
+                <?php endif; ?>
 
                 <?php $evalcontent = ob_get_clean();
 

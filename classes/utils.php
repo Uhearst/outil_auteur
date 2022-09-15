@@ -163,6 +163,9 @@ class utils
         $destfiles = [];
         $destareafiles = $fs->get_area_files($destcontextid, $destcomponent, $destfilearea, $destitemid);
         foreach ($destareafiles as $file) {
+            if ('.' === $file->get_filename()) {
+                continue;
+            }
             $destfiles[$file->get_filepath() . $file->get_filename()] = $file;
         }
         $destfilepaths = array_keys($destfiles);
@@ -182,7 +185,7 @@ class utils
 
         // delete obsolete folders
         $destdirs = $fs->get_directory_files($destcontextid, $destcomponent, $destfilearea, $destitemid, '/');
-        $neededdirs = array_map(function ($source) { return '/' . $source->folder; }, $sources);
+        $neededdirs = array_map(function ($source) { return "/{$source->folder}/"; }, $sources);
         foreach ($destdirs as $destdir) {
             if ($destdir === '.') {
                 continue;
@@ -272,6 +275,23 @@ class utils
         }
 
         return false;
+    }
+
+    /**
+     * Bumps the timemodified column of a database record to current time. Typically useful when a descendant of
+     * the object has been deleted.
+     *
+     * @param string $table table name without prefix, must have timemodified field
+     * @param string $id ID of record whose timemodified must be updated
+     * @return void
+     */
+    public static function db_bump_timechanged($table, $id) {
+        global $DB;
+        $record = $DB->get_record($table, ['id' => $id]);
+        if ($record) {
+            $record->timemodified = time();
+            $DB->update_record($table, $record);
+        }
     }
 
     /**

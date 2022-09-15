@@ -155,6 +155,21 @@ class learningobjective_plan
     public function delete() {
         global $DB;
 
+        utils::db_bump_timechanged('udehauthoring_teaching_obj', $this->audehteachingobjectiveid);
+
+        // bump all following siblings
+        $following_siblings = $DB->get_records_sql(
+            " SELECT id 
+                  FROM {udehauthoring_learning_obj}
+                  WHERE audehteachingobjectiveid = ?
+                  AND id > ?",
+            [ $this->audehteachingobjectiveid, $this->id ]
+        );
+
+        foreach ($following_siblings as $following_sibling) {
+            utils::db_bump_timechanged('udehauthoring_learning_obj', $following_sibling->id);
+        }
+
         return $DB->delete_records('udehauthoring_learning_obj', ['id' => $this->id]);
     }
 }

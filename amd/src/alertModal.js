@@ -51,7 +51,7 @@ function buildModal() {
     buttonCloseHeader.innerHTML = '<span aria-hidden="true">&times;</span>';
 
     modalBody.setAttribute('class', 'modal-body');
-    modalBody.innerHTML = 'Etes vous sur?';
+    modalBody.innerHTML = 'Êtes-vous sûr ?';
 
     modalFooter.setAttribute('class', 'modal-footer');
 
@@ -109,7 +109,7 @@ function toggleModal() {
                 }
             }
             let modalBody = document.querySelector('[class = "modal-body"]');
-            modalBody.innerHTML = 'Etes vous sur de supprimer l\'outil ' + currentName + '?';
+            modalBody.innerHTML = 'Êtes-vous sûr de vouloir supprimer l\'outil ' + currentName + '?';
 
         });
     });
@@ -166,6 +166,7 @@ function deleteToolFromModal() {
 
                     }
                     currentIndex = null;
+                    window.location.reload();
                 },
                 error: function() {
                     window.console.log('failure');
