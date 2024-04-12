@@ -1,71 +1,111 @@
 /* COMMON */
 
 .format-udehauthoring #region-main {
-    border: 30px solid #EEE;
+    border: 30px solid #fff;
+    background-color: #fff;
 }
 
-.format-udehauthoring #region-main div[role=main] {
+.format-udehauthoring #region-main div[role="main"] {
+    filter: none;
     padding: 0 2.5rem;
 }
 
-.format-udehauthoring.path-course-format-udehauthoring-redact #region-main div[role=main] {
+.format-udehauthoring.path-course-format-udehauthoring-redact #region-main div[role="main"] {
     padding: 0;
 }
 
 .format-udehauthoring h2 {
     margin-top: 1.625rem;
-    color: #CC333F;
+    color: #00AD88;
     font-size: 2.25rem;
     font-weight: bold;
 }
 
 .format-udehauthoring h3 {
     font-size: 1.5rem;
-    font-weight: 500;
+    font-weight: 700;
 }
 
-.format-udehauthoring .btn.btn-secondary {
+.format-udehauthoring .text_to_html > h3:first-of-type{
+    color: #00AD88;
+    margin-top: 2rem;
+    line-height: 1rem;
+}
+
+.format-udehauthoring h3 + hr {
+    margin: 0.75rem 0 1rem;
+}
+
+.udeha-syllabus-lo h3{
+    font-size: 1rem;
+}
+
+.format-udehauthoring .btn.btn-secondary.btn-sm,
+.format-udehauthoring .btn.btn-primary.btn-sm{
+    color: #FFF;
+    background: #00AD88;
+    border: none!important;
+}
+
+.format-udehauthoring .btn.btn-course-intro,
+.format-udehauthoring .btn.btn-subquestions {
     color: white;
     text-transform: uppercase;
     background: #4a4a4a;
     font-weight: bold;
-    font-size: 110%;
+    /*font-size: 1rem;*/
     border: none;
 }
-.format-udehauthoring .btn {
-    padding: .5rem 1rem;
+
+.format-udehauthoring .btn.btn-subquestions{
+    font-size: .75rem;
 }
 
-.format-udehauthoring .btn.btn-secondary:not(:disabled):not(.disabled):hover {
-    background: #999;
+.format-udehauthoring .btn {
+    padding: 0.5rem 1rem;
 }
-.format-udehauthoring .btn.btn-secondary:not(:disabled):not(.disabled):focus,
-.format-udehauthoring .btn.btn-secondary:not(:disabled):not(.disabled):active {
+
+.format-udehauthoring .btn.btn-subquestions:not(:disabled):not(.disabled):hover,
+.format-udehauthoring .btn.btn-subquestions:not(:disabled):not(.disabled):focus,
+.format-udehauthoring .btn.btn-subquestions:not(:disabled):not(.disabled):active,
+.format-udehauthoring .btn.btn-sm:not(:disabled):not(.disabled):hover,
+.format-udehauthoring .btn.btn-sm:not(:disabled):not(.disabled):focus,
+.format-udehauthoring .btn.btn-sm:not(:disabled):not(.disabled):active,
+.format-udehauthoring .btn.btn-course-intro:not(:disabled):not(.disabled):hover,
+.format-udehauthoring .btn.btn-course-intro:not(:disabled):not(.disabled):focus,
+.format-udehauthoring .btn.btn-course-intro:not(:disabled):not(.disabled):active {
     color: white;
     background: #999;
 }
 
-.format-udehauthoring .btn.btn-primary {
+.btn-secondary {
+    border: none !important; /* stylelint-disable-line declaration-no-important */
+}
+
+.format-udehauthoring .btn-subquestions .icon,
+.format-udehauthoring .btn-course-intro .icon {
+    color: white!important;
+}
+
+.format-udehauthoring .btn.btn-primary:not(.btn-sm) {
     color: white;
     text-transform: uppercase;
-    background: #CC333F;
+    background: #00AD88;
     font-weight: bold;
-    font-size: 110%;
+    /*font-size: 1rem;*/
     border: none;
-    padding-left: 1em;
+    /*padding-left: 1em;*/
 }
-.format-udehauthoring .btn.btn-primary:not(:disabled):not(.disabled):hover {
-    background: #999;
-}
+
+.format-udehauthoring .btn.btn-primary:not(:disabled):not(.disabled):hover,
 .format-udehauthoring .btn.btn-primary:not(:disabled):not(.disabled):active:focus,
 .format-udehauthoring .btn.btn-primary:not(:disabled):not(.disabled):active:active {
     color: white;
     background: #999;
 }
 
-
 .format-udehauthoring .udeha-separator {
-    border-color: #CC333F;
+    border-color: #FFB652;
     margin: 50px 0;
     clear: both;
 }
@@ -84,7 +124,7 @@
 
 .format-udehauthoring .udeha-course-nav-back {
     background: #444;
-    padding: .4em 1em;
+    padding: 0.4em 1em;
     overflow: hidden;
     text-transform: uppercase;
 }
@@ -96,6 +136,7 @@
 }
 
 .format-udehauthoring .udeha-course-nav-back .icon {
+    color: #fff;
     font-weight: bold;
     margin-right: 0;
 }
@@ -132,13 +173,13 @@
     padding: 0 1rem;
     margin: 0;
     width: 100%;
-    border-bottom: 1px solid #EEE;
-    background: #CC333F;
+    border-bottom: 1px solid #eee;
+    background: #00AD88;
     flex-wrap: wrap;
 }
 
 .format-udehauthoring .udeha-course-nav ul li {
-    background: #CC333F;
+    background: #00AD88;
     text-align: center;
     margin: 0;
     white-space: nowrap;
@@ -149,7 +190,7 @@
     text-align: center;
     color: white;
     text-decoration: none;
-    padding: .4rem 1rem;
+    padding: 0.4rem 1rem;
     overflow: visible;
 }
 
@@ -161,7 +202,7 @@
 .format-udehauthoring .udeha-course-nav ul li.active a,
 .format-udehauthoring .udeha-course-nav ul li:not(:disabled):not(.disabled):hover a,
 .format-udehauthoring .udeha-course-nav ul li:not(:disabled):not(.disabled):focus a {
-    color: #CC333F;
+    color: #00AD88;
     background: none;
 }
 
@@ -201,11 +242,26 @@
     max-width: 100%;
 }
 
-.btn-course-intro { float: right; margin-top: 2rem; }
-.format-udehauthoring .btn .label-show { display: none; }
-.format-udehauthoring .btn .label-hide { display: initial; }
-.format-udehauthoring .btn.collapsed .label-show { display: initial; }
-.format-udehauthoring .btn.collapsed .label-hide { display: none; }
+.btn-course-intro {
+    float: right;
+    margin-top: 2rem;
+}
+
+.format-udehauthoring .btn .label-show {
+    display: none;
+}
+
+.format-udehauthoring .btn .label-hide {
+    display: initial;
+}
+
+.format-udehauthoring .btn.collapsed .label-show {
+    display: initial;
+}
+
+.format-udehauthoring .btn.collapsed .label-hide {
+    display: none;
+}
 
 .format-udehauthoring .udeha-subquestions-actions {
     padding-top: 2rem;
@@ -215,17 +271,19 @@
 .format-udehauthoring .udeha-course-section {
     padding-bottom: 20px;
     display: flex;
-    min-height: 540px;
 }
 
 .udeha-course-section .text_to_html {
-    background: #EEE;
+    background: #eee;
     display: flex;
     flex-flow: column;
     align-content: stretch;
     width: 100%;
 }
 
+.udeha-course-section .text_to_html a:not(.btn){
+    text-decoration: underline;
+}
 
 .udeha-course-section-name {
     font-weight: bold;
@@ -233,7 +291,7 @@
 }
 
 .udeha-course-section-description {
-    padding: .2em 1em;
+    padding: 0.2em 1em;
     flex-grow: 1;
 }
 
@@ -243,7 +301,7 @@
 }
 
 .format-udehauthoring .udeha-separator.udeha-sections-separator:after {
-    content: url("/course/format/udehauthoring/assets/img-front/hr-accueil.png");
+    content: url("/course/format/udehauthoring/assets/img-front/hr-UdeH.png");
 }
 
 /* SYLLABUS */
@@ -251,8 +309,22 @@
     text-align: center;
 }
 
-.udeha-teacher-info span {
-    color: #6C6C6C;
+.udeha-teacher-info span, .udeha-presentation span {
+    color: #6c6c6c;
+}
+
+.presentation {
+    clear: both;
+}
+
+.presentation .presentation-section {
+    display: inline;
+    font-weight: bold;
+    margin-right: 7px;
+}
+
+.presentation .presentation-data {
+    display: inline; 
 }
 
 /* SECTION PAGE */
@@ -269,7 +341,6 @@
     max-width: 100%;
 }
 
-
 .udeha-evaluation-description {
     margin-bottom: 2rem;
 }
@@ -281,8 +352,9 @@
     margin: 1.5em 0;
 }
 
-.udeha-section-subquestion, .udeha-section-evaluation {
-    background: #EEE;
+.udeha-section-subquestion,
+.udeha-section-evaluation {
+    background: #eee;
     flex-grow: 1;
     padding: 1em;
 
@@ -306,13 +378,13 @@ table.udeha-subquestions {
 
 table.udeha-subquestions td {
     vertical-align: middle;
-    padding: .25rem;
-    background: #EEE;
+    padding: 0.25rem;
+    background: #eee;
     overflow: hidden;
 }
 
 table.udeha-subquestions td.udeha-subquestion-index {
-    color: #CC333F;
+    color: #00AD88;
     font-weight: bold;
     padding: 1rem;
     width: 5rem;
@@ -329,6 +401,7 @@ td.udeha-subquestion-link {
 }
 
 td.udeha-subquestion-link .icon {
+    color: #fff;
     font-size: 36px;
     height: 36px;
     width: auto;
@@ -344,12 +417,14 @@ td.udeha-subquestion-link a {
     color: white;
 }
 
-td.udeha-subquestion-link a:link, td.udeha-subquestion-link a:visited {
-    background: #CC333F;
+td.udeha-subquestion-link a:link,
+td.udeha-subquestion-link a:visited {
+    background: #00AD88;
     color: white;
 }
 
-td.udeha-subquestion-link a:hover, td.udeha-subquestion-link a:active {
+td.udeha-subquestion-link a:hover,
+td.udeha-subquestion-link a:active {
     background: #999;
     color: white;
     text-decoration: none;
@@ -363,13 +438,14 @@ td.udeha-subquestion-link a:hover, td.udeha-subquestion-link a:active {
     content: url("/course/format/udehauthoring/assets/img-front/hr-module.png");
 }
 
-
 /* SUBQUESTION PAGE */
 
 .udeha-subquestion-vignette {
     float: right;
-    width: 364px;
-    height: 215px;
+    /*width: 410px;
+    height: 242px;*/
+    width: 590px;
+    height: 348px;
     margin-bottom: 2em;
 }
 
@@ -389,31 +465,41 @@ table.udeha-explorations {
 table.udeha-explorations td {
     vertical-align: middle;
     padding: 1em;
-    background: #EEE;
+    background: #eee;
     overflow: hidden;
 }
 
 table.udeha-explorations td.udeha-exploration-icon {
-    background: #CC333F;
+    background: #4375FF;
     width: 4rem;
     text-align: center;
     color: white;
 }
 
 table.udeha-explorations td.udeha-exploration-icon .icon {
+    color: #fff;
     font-size: 16px;
     height: 16px;
     width: auto;
     margin-right: 0;
 }
 
-table.udeha-explorations .udeha-exploration-details > table td, .udeha-exploration-details > table th {
-    padding: .75rem 1.5rem;
+table.udeha-explorations .udeha-exploration-details > table td,
+.udeha-exploration-details > table th {
+    padding: 0.75rem 1.5rem;
     vertical-align: top;
 }
 
 table.udeha-explorations .udeha-exploration-details p {
     margin-bottom: 0;
+}
+
+table.udeha-explorations .udeha-exploration-details {
+    text-align: center;
+}
+
+table.udeha-explorations .udeha-exploration-details > table {
+    text-align: left;
 }
 
 table.udeha-resources {
@@ -422,11 +508,10 @@ table.udeha-resources {
     width: 100%;
 }
 
-
 table.udeha-resources td {
     vertical-align: middle;
     padding: 1em;
-    background: #EEE;
+    background: #eee;
     overflow: hidden;
 }
 
@@ -478,7 +563,7 @@ table.udeha-resources td.udeha-resource-vignette img {
 }
 
 .udeha-evaluation-shortdesc {
-    background: #EEE;
+    background: #eee;
     padding: 1em;
     margin-bottom: 2.25rem;
 }
@@ -506,7 +591,7 @@ table.udeha-resources td.udeha-resource-vignette img {
 }
 
 .udeha-evaluation-elements > div {
-    background: #EEE;
+    background: #eee;
     flex-grow: 1;
     padding: 1em;
 
@@ -544,9 +629,13 @@ table.udeha-resources td.udeha-resource-vignette img {
 /* Thème Edwiser : ne pas afficher les sections dans la navigation de gauche  */
 
 body.format-udehauthoring #nav-drawer nav#activity-nav .list-group-item.activity-sections {
-    display: none !important;
+    display: none !important; /* stylelint-disable-line declaration-no-important */
 }
 
 body.format-udehauthoring #nav-drawer nav#activity-nav .sub-menu {
     display: none;
 }
+
+/*.format-udehauthoring .icon {
+    color: white !important; /* stylelint-disable-line declaration-no-important * /
+}*/

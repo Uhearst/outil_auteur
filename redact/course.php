@@ -6,10 +6,11 @@ require_once('../../../../config.php');
 
 global $DB, $PAGE, $OUTPUT, $USER, $URL, $ME, $COURSE;
 
-$PAGE->requires->js(new \moodle_url('/course/format/udehauthoring/tinymce/js/tinymce/tinymce.min.js'), true);
+echo '<!doctype html>';
+
 $PAGE->requires->css('/course/format/udehauthoring/authoring_tool.css');
 
-$courseid = optional_param('course_id', 0, PARAM_INT); // This are required.
+$courseid = optional_param('course_id', 0, PARAM_INT); // This is required.
 
 $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 $context = context_course::instance($course->id, MUST_EXIST);
@@ -20,7 +21,7 @@ require_capability('format/udehauthoring:redact', $context);
 $isfrontpage = ($course->id == SITEID);
 
 if ($isfrontpage) {
-    print_error('errorcantredactfrontpage', 'format_udehauthoring');
+    throw new \moodle_exception('errorcantredactfrontpage', 'format_udehauthoring');
     exit;
 }
 
@@ -29,23 +30,24 @@ $PAGE->set_url('/course/format/udehauthoring/redact/course.php', ['id' => $cours
 $PAGE->set_title("$course->shortname: ".get_string('redactcourseshort', 'format_udehauthoring'));
 $PAGE->set_heading($course->fullname);
 
-$filemanageropts = array('subdirs' => 0, 'maxbytes' => '0', 'maxfiles' => 1, 'context' => $context);
-
 $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'init', array($COURSE->lang));
 
 $courseplan = \format_udehauthoring\model\course_plan::instance_by_courseid($courseid, $context);
 
 $form = new \format_udehauthoring\form\redact_course(
     null,
-    array('courseid' => $courseplan ? $courseplan->id : null,
+    array(
+        'id' => $courseplan ? $courseplan->id : null,
+        'courseid' => $courseplan ? $courseplan->courseid : null,
         'coursetitle' => $courseplan ? $courseplan->title : ''),
     'post',
     '',
     ['class' => 'udeh-form',
         'id' => 'udeh-form']);
 
-if($courseplan) {
-    $form->set_data($courseplan->to_form_data($context, false));
+if ($courseplan) {
+    $val = $courseplan->to_form_data($context, false);
+    $form->set_data($val);
     $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'fillForm', array(json_encode(['courseId' => $courseid])));
 } else {
     $courseplan = \format_udehauthoring\model\course_plan::base_instance($courseid, $context);
@@ -77,21 +79,33 @@ echo \format_udehauthoring\utils::breadCrumb($courseplan);
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavigation', 'init');
 echo \format_udehauthoring\utils::mainMenu($courseplan, substr($ME, strrpos($ME, '/') + 1));
 
-$previewurls = [];
-$previewurls['displayable-form-informations-container'] = utils::getPreviewUrl($courseid, 0);
-$previewurls['displayable-form-objectives-container']   = utils::getPreviewUrl($courseid, 0, 2);
-$previewurls['displayable-form-sections-container']     = (new \moodle_url('/course/view.php', ['id' => $courseid, 'preview' => 1]))->out(false);
-$previewurls['displayable-form-evaluations-container']  = utils::getPreviewUrl($courseid, false, false, true);
+echo \format_udehauthoring\titlesUtils::buildTitlesModal($courseplan->id);
+echo \format_udehauthoring\modalUtils::buildWarningModal();
 
-$previewurl = (new \moodle_url('/course/view.php', ['id' => $courseid, 'preview' => 1]))->out(false);
-echo \format_udehauthoring\utils::navBar($courseplan->title, $courseplan->courseid, $previewurls);
+$previewurls = [];
+$previewurls['displayable-form-informations-container'] =
+    utils::getPreviewUrlFromName($courseid, 'displayable-form-informations-container');
+$previewurls['displayable-form-additional-information-container']  =
+    utils::getPreviewUrlFromName($courseid, 'displayable-form-additional-information-container');
+$previewurls['displayable-form-objectives-container']   =
+    utils::getPreviewUrlFromName($courseid, 'displayable-form-objectives-container');
+$previewurls['displayable-form-sections-container']     =
+    utils::getPreviewUrlFromName($courseid, 'displayable-form-sections-container');
+$previewurls['displayable-form-evaluations-container']  =
+    utils::getPreviewUrlFromName($courseid, 'displayable-form-evaluations-container');
+
+echo \format_udehauthoring\utils::navBar($courseplan->courseid, $previewurls);
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavBar', 'initNavBar');
 
 echo \format_udehauthoring\utils::mainProgress($courseplan);
 $PAGE->requires->js_call_amd('format_udehauthoring/mainProgress', 'init');
 
 $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'exportCourse', array($courseplan->courseid));
-$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'publishCoursePlan', array(array($courseplan->id, $courseplan->courseid)));
+$PAGE->requires->js_call_amd(
+    'format_udehauthoring/helper',
+    'publishCoursePlan',
+    array(array($courseplan->id, $courseplan->courseid)));
+$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'initSaveWarningModal');
 
 $form->display();
 

@@ -7,6 +7,7 @@ global $CFG;
 
 use format_udehauthoring\model\evaluation_plan;
 use format_udehauthoring\model\section_plan;
+use format_udehauthoring\publish\content\syllabus;
 
 require_once("$CFG->libdir/formslib.php");
 
@@ -19,7 +20,25 @@ class redact_evaluation extends \moodleform
     {
         $mform = $this->_form;
 
-        $mform->addElement('html', '<h1 class="ml-3 course-title">' . $this->_customdata['coursetitle'] . '</h1>');
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = array(
+            'subdirs' => 1,
+            'maxbytes' => 100000000,
+            'maxfiles' => 1,
+            'changeformat' => 0,
+            'context' => $context,
+            'noclean' => 1,
+            'trusttext' => 1
+        );
+
+        $mform->addElement('html', '<h1 class="course-title">' . $this->_customdata['coursetitle'] . '</h1>');
 
         if(get_string_manager()->string_exists('instructionsevaluation', 'format_udehauthoring') && get_string('instructionsevaluation', 'format_udehauthoring')) {
             $mform->addElement('html', '<div class="mt-3">');
@@ -28,7 +47,24 @@ class redact_evaluation extends \moodleform
             $mform->addElement('html', '<p class="ml-3 mt-1">' . get_string('instructionsevaluation', 'format_udehauthoring') . '</p>');
         }
 
-        $moduletitle = $this->_customdata['evaluation']->audehsectionid ? section_plan::get_section_title_by_id($this->_customdata['evaluation']->audehsectionid)->title : 'Aucun';
+        $moduletitles = '';
+
+        if ($this->_customdata['evaluation']->audehsectionids
+            && count($this->_customdata['evaluation']->audehsectionids) > 0) {
+            foreach ($this->_customdata['evaluation']->audehsectionids as $key => $audehsectionid) {
+                $moduletitles .= file_rewrite_pluginfile_urls(
+                    section_plan::get_section_title_by_id($key),
+                    'pluginfile.php',
+                    $context->id,
+                    'format_udehauthoring',
+                    'course_section_title_' . $key,
+                    0
+                );
+            }
+        } else {
+            $moduletitles =  get_string('none', 'theme_remui');
+        }
+
         $learningobjs = '';
         $counter = 0;
         if ($this->_customdata['teachingobectives'] !== []) {
@@ -37,7 +73,15 @@ class redact_evaluation extends \moodleform
                     if(in_array($learningobj->id, array_column($this->_customdata['evaluation']->learningobjectiveids, 'audehlearningobjectiveid'))) {
                         $learningobjs .=
                             '<div id="evaluation_obj_content_' . $counter . '" style="display: flex;">' .
-                            '<span class="mr-2">'. ($key + 1) . '.' . ($innerkey + 1) . ' - ' . '</span>' . $learningobj->learningobjective
+                            '<span class="mr-2">'. ($key + 1) . '.' . ($innerkey + 1) . ' - ' . '</span>' .
+                                file_rewrite_pluginfile_urls(
+                                    $learningobj->learningobjective,
+                                    'pluginfile.php',
+                                    $context->id,
+                                    'format_udehauthoring',
+                                    'course_learningobjective_' . $learningobj->id,
+                                    0
+                                )
                             . '</div>';
                         $counter = $counter + 1;
                     }
@@ -46,10 +90,10 @@ class redact_evaluation extends \moodleform
         }
 
         $mform->addElement('html', '
-        <div class="accordion-container card ml-3">
+        <div class="accordion-container card">
             <div id="evaluation_preview_header" class="card-header accordion-header">
               <a data-toggle="collapse" href="#collapseEvaluationPreview" role="button" aria-expanded="false" aria-controls="collapseEvaluationPreview" class="collapsed">
-                '. get_string('evaluation', 'format_udehauthoring') . ' - '. strip_tags($this->_customdata['evaluation']->title) . '
+                '. get_string('evaluation', 'format_udehauthoring') . ' - '. strip_tags(syllabus::cleanEditorContentForCoursePlan($this->_customdata['evaluation']->title)) . '
               </a>
             </div>
             <div class="collapse" id="collapseEvaluationPreview">
@@ -59,7 +103,14 @@ class redact_evaluation extends \moodleform
                     '. get_string('evaluationdescription', 'format_udehauthoring') . '
                     </strong>
                     <div id="evaluation_description_content">' .
-                        $this->_customdata['evaluation']->description
+                    file_rewrite_pluginfile_urls(
+                        $this->_customdata['evaluation']->description,
+                        'pluginfile.php',
+                        $context->id,
+                        'format_udehauthoring',
+                        'course_evaluation_description_' . $this->_customdata['evaluation']->id,
+                        0
+                    )
                 . '</div>
                 </div>
                 <div id="evaluation_weight" class="mb-2 mt-2">
@@ -75,7 +126,7 @@ class redact_evaluation extends \moodleform
                     '. get_string('evaluationassociatedmodule', 'format_udehauthoring') . '
                     </strong>
                     <p id="evaluation_module_content">' .
-                    strip_tags($moduletitle)
+                        $moduletitles
                     . '</p>
                 </div>
                  <div id="evaluation_obj" class="mb-2 mt-2">
@@ -89,7 +140,7 @@ class redact_evaluation extends \moodleform
         </div>'
         );
 
-        $mform->addElement('html', '<h2 class="ml-3 page-title">'. get_string('evaluation', 'format_udehauthoring') . '</h2>');
+        $mform->addElement('html', '<h2 class="page-title">'. get_string('evaluation', 'format_udehauthoring') . '</h2>');
 
         $mform->addElement('hidden', 'id');
         $mform->setType('id', PARAM_INT);
@@ -109,7 +160,7 @@ class redact_evaluation extends \moodleform
         $mform->addElement('hidden', 'evaluation_tool_cmid');
         $mform->setType('evaluation_tool_cmid', PARAM_INT);
 
-        $mform->addElement('html', '<div class="custom-control custom-switch udeh-custom-switch ml-3 mb-2 mt-5">
+        $mform->addElement('html', '<div class="custom-control custom-switch mb-2 mt-5">
           <input type="checkbox" class="custom-control-input" id="embed_selector"/>
           <label class="custom-control-label" for="embed_selector">' . get_string("issectionintroductionembed", "format_udehauthoring") . '</label>
         </div>');
@@ -118,7 +169,7 @@ class redact_evaluation extends \moodleform
         $mform->setType('isembed', PARAM_INT);
         $mform->setDefault('isembed', 0);
 
-        $mform->addElement('textarea', 'evaluation_introduction_embed', get_string('evaluationintroductionembed', 'format_udehauthoring'), ['class'=>'inline-element']);
+        $mform->addElement('textarea', 'evaluation_introduction_embed', get_string('evaluationintroductionembed', 'format_udehauthoring'), ['rows'=>'4']);
         $mform->setType('evaluation_introduction_embed', PARAM_RAW);
 
         $mform->addElement('filemanager', 'evaluation_introduction', get_string('evaluationintroduction', 'format_udehauthoring'), null,
@@ -129,13 +180,13 @@ class redact_evaluation extends \moodleform
             ['subdirs' => false]);
         $mform->setType('evaluation_files', PARAM_RAW);
 
-        $mform->addElement('editor', 'evaluation_full_description', get_string('evaluationfulldescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $mform->addElement('editor', 'evaluation_full_description', get_string('evaluationfulldescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('evaluation_full_description', PARAM_RAW);
 
-        $mform->addElement('editor', 'evaluation_instructions', get_string('evaluationinstructions', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $mform->addElement('editor', 'evaluation_instructions', get_string('evaluationinstructions', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('evaluation_instructions', PARAM_RAW);
 
-        $mform->addElement('editor', 'evaluation_criteria', get_string('evaluationcriteria', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $mform->addElement('editor', 'evaluation_criteria', get_string('evaluationcriteria', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('evaluation_criteria', PARAM_RAW);
 
         $mform->addElement('hidden', 'evaluation_weight');

@@ -19,6 +19,24 @@ class redact_global_evaluation extends \moodleform
     {
         $mform = $this->_form;
 
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = array(
+            'subdirs' => 1,
+            'maxbytes' => 100000000,
+            'maxfiles' => 1,
+            'changeformat' => 0,
+            'context' => $context,
+            'noclean' => 1,
+            'trusttext' => 1
+        );
+
         $mform->addElement('hidden', 'course_id');
         $mform->setType('course_id', PARAM_INT);
 
@@ -38,18 +56,18 @@ class redact_global_evaluation extends \moodleform
             $mform->addElement('html', '<p class="ml-3 mt-1">' . get_string('instructionsglobalevaluations', 'format_udehauthoring') . '</p>');
         }
 
-        $mform->addElement('html', '<div id="global-evaluations-container"><h2 class="mb-3 ml-3 page-title">' . get_string('globalevaluation', 'format_udehauthoring') . '</h2>');
+        $mform->addElement('html', '<div id="global-evaluations-container"><h2 class="mb-3 ml-3 page-title">' . get_string('globalevaluations', 'format_udehauthoring') . '</h2>');
 
         $repeatarray = [];
         $repeatarray[] = $mform->createElement('html', '<div class="row row-container row_section_subquestion_container mb-3" id="row_section_subquestion_container">');
         $repeatarray[] = $mform->createElement('html', '<div class="col-12 single-accordion-container accordion-container card">');
         $repeatarray[] = $mform->createElement('html', '<div class="accordion-header card-header">');
         $repeatarray[] = $mform->createElement('html', '
-          <a data-toggle="collapse" href="#collapseGlobalEvaluation" role="button" aria-expanded="false" aria-controls="collapseGlobalEvaluation">
+          <a data-toggle="collapse" href="#collapseGlobalEvaluation" role="button" aria-expanded="false" aria-controls="collapseGlobalEvaluation" class="collapsed">
           Evaluation Globale
           </a>');
         $repeatarray[] = $mform->createElement('html', '</div>');
-        $repeatarray[] = $mform->createElement('html', '<div class="collapse show" id="collapseGlobalEvaluation" data-parent="#global-evaluations-container">');
+        $repeatarray[] = $mform->createElement('html', '<div class="collapse" id="collapseGlobalEvaluation" data-parent="#global-evaluations-container">');
         $repeatarray[] = $mform->createElement('html', '<div class="accordion-content card-body">');
         $repeatarray[] = $mform->createElement('hidden', 'evaluation_id', 0);
         $repeatarray[] = $mform->createElement('hidden', 'audeh_section_id');
@@ -97,15 +115,15 @@ class redact_global_evaluation extends \moodleform
         </div>');
 
 
-        $repeatarray[] = $mform->createElement('textarea', 'evaluation_introduction_embed', get_string('evaluationintroductionembed', 'format_udehauthoring'), ['class'=>'inline-element']);
+        $repeatarray[] = $mform->createElement('textarea', 'evaluation_introduction_embed', get_string('evaluationintroductionembed', 'format_udehauthoring'), ['rows'=>'4']);
 
         $repeatarray[] = $mform->createElement('filemanager', 'evaluation_introduction', get_string('evaluationintroduction', 'format_udehauthoring'), null,
             array('maxfiles' => 1, 'subdirs' => false));
         $repeatarray[] = $mform->createElement('filemanager', 'evaluation_files', get_string('evaluationfiles', 'format_udehauthoring'), null,
             ['subdirs' => false]);
-        $repeatarray[] = $mform->createElement('editor', 'evaluation_full_description', get_string('evaluationfulldescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
-        $repeatarray[] = $mform->createElement('editor', 'evaluation_instructions', get_string('evaluationinstructions', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
-        $repeatarray[] = $mform->createElement('editor', 'evaluation_criteria', get_string('evaluationcriteria', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $repeatarray[] = $mform->createElement('editor', 'evaluation_full_description', get_string('evaluationfulldescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
+        $repeatarray[] = $mform->createElement('editor', 'evaluation_instructions', get_string('evaluationinstructions', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
+        $repeatarray[] = $mform->createElement('editor', 'evaluation_criteria', get_string('evaluationcriteria', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $repeatarray[] = $mform->createElement('hidden', 'evaluation_weight');
 
         $grouparray = array();

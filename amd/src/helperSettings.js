@@ -1,3 +1,5 @@
+import {get_string as getString} from 'core/str';
+
 let unitCounter = 0;
 
 /**
@@ -66,17 +68,17 @@ function initRequest() {
                 data: {
                     units: unitArray,
                 },
-                success: function(response) {
+                success: async function(response) {
                     let parsedResponse = JSON.parse(response);
                     if (parsedResponse.success == "1") {
                         window.$('#adminsettings').submit();
                     } else {
-                        addIssueNotificationUnit();
+                        await addIssueNotificationUnit();
                         window.$('#adminsettings').submit();
                     }
                 },
-                error: function() {
-                    addIssueNotificationUnit();
+                error: async function() {
+                    await addIssueNotificationUnit();
                     window.$('#adminsettings').submit();
                 }
             });
@@ -378,15 +380,14 @@ function buildAccordion(toggableId, headerLabel, inputs) {
 /**
  *
  */
-function addIssueNotificationUnit() {
+async function addIssueNotificationUnit() {
     let alertContainer = document.createElement('div');
 
     let notificationContainer = document.getElementById('user-notifications');
 
     alertContainer.setAttribute('class', 'alert alert-danger alert-block fade in ');
     alertContainer.setAttribute('role', 'alert');
-    alertContainer.innerHTML = 'Une erreur est apparue lors de la sauvegarde des unités d\'évaluations. ' +
-        'Le reste des configurations sera sauvegardé.';
+    alertContainer.innerHTML = await getString('notificationerrorunit', 'format_udehauthoring');
     notificationContainer.appendChild(alertContainer);
     window.$('html, body').animate({scrollTop: 0}, 'fast');
 }

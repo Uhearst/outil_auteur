@@ -11,6 +11,7 @@ class learningobjective_plan
     public $id = null;
     public $audehteachingobjectiveid = null;
     public $learningobjective = null;
+    public $learningobjectiveformat = null;
     public $learningobjectivecompetency = null;
     public $audehevaluationid = null;
     public $timemodified;
@@ -57,7 +58,7 @@ class learningobjective_plan
      * @return array
      * @throws \dml_exception
      */
-    public static function instance_all_by_teaching_objective_plan_id($audehteachingobjectiveid) {
+    public static function instance_all_by_teaching_objective_plan_id($audehteachingobjectiveid, $context = null) {
         global $DB;
 
         $records = $DB->get_records('udehauthoring_learning_obj', ['audehteachingobjectiveid' => $audehteachingobjectiveid]);
@@ -72,6 +73,20 @@ class learningobjective_plan
             $learningobjectiveplan->learningobjectivecompetency = $record->learningobjectivecompetency;
             $learningobjectiveplan->audehevaluationid = $record->audehevaluationid;
             $learningobjectiveplan->timemodified = $record->timemodified;
+
+            if ($context) {
+                $options = format_udehauthoring_get_editor_options($context);
+                $learningobjectiveplan = file_prepare_standard_editor(
+                    $learningobjectiveplan,
+                    'learningobjective',
+                    $options,
+                    $context,
+                    'format_udehauthoring',
+                    'course_learningobjective_' . $learningobjectiveplan->id,
+                    0
+                );
+            }
+
             $learningobjectiveplans[] = $learningobjectiveplan;
         }
 
@@ -92,8 +107,9 @@ class learningobjective_plan
 
         $learningobjectiveplan = new self();
         foreach($learningobjectiveplan as $key => $_) {
-            $learningobjectiveplan->$key = $record->$key;
-
+            if(!str_contains($key, 'format')) {
+                $learningobjectiveplan->$key = $record->$key;
+            }
         }
         return $learningobjectiveplan;
     }
@@ -120,14 +136,36 @@ class learningobjective_plan
 
     }
 
-    public function save() {
+    public function save($context) {
         global $DB;
 
         $record = new \stdClass();
-        $record->audehteachingobjectiveid = $this->audehteachingobjectiveid;
-        if($this->id) $record->id = $this->id;
-        if($this->learningobjective) $record->learningobjective = $this->learningobjective;
+
+        if (!isset($this->audehteachingobjectiveid)) {
+            return;
+        }
+
+        $record->audehteachingobjectiveid =  $this->audehteachingobjectiveid;
+        if ($this->id) { $record->id = $this->id; }
+        if ($this->learningobjective) { $record->learningobjective = $this->learningobjective; }
         $record->learningobjectivecompetency = $this->learningobjectivecompetency;
+
+        if ((!isset($record->id) || $record->id === '') && (isset($record->learningobjective) || $this->learningobjective_editor['text'] !== '')) {
+            $record->timemodified = time();
+            if (!isset($record->learningobjective)) { $record->learningobjective = ''; }
+            $this->id = $DB->insert_record('udehauthoring_learning_obj', $record);
+            $record->id = $this->id;
+        }
+
+        if (!empty($this->learningobjective_editor)) {
+            $record = utils::prepareEditorContent(
+                $this,
+                $record,
+                $context,
+                'learningobjective',
+                'course_'
+            );
+        }
 
         if (isset($record->id)) {
             if (isset($record->learningobjective)) {
@@ -135,9 +173,6 @@ class learningobjective_plan
             } else {
                 $this->delete();
             }
-        } else if (isset($record->learningobjective)) {
-            $record->timemodified = time();
-            $this->id = $DB->insert_record('udehauthoring_learning_obj', $record);
         }
     }
 
@@ -169,6 +204,13 @@ class learningobjective_plan
         foreach ($following_siblings as $following_sibling) {
             utils::db_bump_timechanged('udehauthoring_learning_obj', $following_sibling->id);
         }
+        $teachingObj = $DB->get_record('udehauthoring_teaching_obj', ['id' => $this->audehteachingobjectiveid]);
+        $courseId = $DB->get_record('udehauthoring_course', ['id' => $teachingObj->audehcourseid])->courseid;
+        $context = \context_course::instance($courseId);
+        utils::deleteAssociatedAutoSavesAndFiles(
+            $context,
+            'course_learningobjective_' . $this->audehteachingobjectiveid . '_' . $this->id
+        );
 
         return $DB->delete_records('udehauthoring_learning_obj', ['id' => $this->id]);
     }

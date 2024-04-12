@@ -6,9 +6,11 @@ require_once('../../../../config.php');
 
 global $DB, $PAGE, $OUTPUT, $ME;
 
+echo '<!doctype html>';
+
 $PAGE->requires->css('/course/format/udehauthoring/authoring_tool.css');
 
-$subquestionid = optional_param('id', 0, PARAM_INT); // This are required.
+$subquestionid = optional_param('id', 0, PARAM_INT); // This is required.
 $subquestionplan = \format_udehauthoring\model\subquestion_plan::instance_by_id($subquestionid);
 $sectionplan = \format_udehauthoring\model\section_plan::instance_by_id($subquestionplan->audehsectionid);
 $courseplan =  \format_udehauthoring\model\course_plan::instance_by_id($sectionplan->audehcourseid);
@@ -21,7 +23,7 @@ require_capability('format/udehauthoring:redact', $context);
 $isfrontpage = ($course->id == SITEID);
 
 if ($isfrontpage) {
-    print_error('errorcantredactfrontpage', 'format_udehauthoring');
+    throw new \moodle_exception('errorcantredactfrontpage', 'format_udehauthoring');
     exit;
 }
 
@@ -30,7 +32,6 @@ $PAGE->set_url('/course/format/udehauthoring/redact/subquestion.php', ['id' => $
 $PAGE->set_title("$course->shortname: ".get_string('redactsubquestionshort', 'format_udehauthoring'));
 $PAGE->set_heading($course->fullname);
 
-$filemanageropts = array('subdirs' => 0, 'maxbytes' => '0', 'maxfiles' => 1, 'context' => $context);
 $form = new \format_udehauthoring\form\redact_subquestion(null, array(
     'section' => $sectionplan,
     'subquestion' => $subquestionplan,
@@ -70,8 +71,6 @@ if ($form->no_submit_button_pressed()) {
     }
 }
 
-
-
 if ($data = $form->get_data()) {
     $subquestionplan = \format_udehauthoring\model\subquestion_plan::instance_by_form_data($data);
     $subquestionplan->save($context);
@@ -89,6 +88,7 @@ $PAGE->requires->js_call_amd('format_udehauthoring/notificationHelper', 'initNot
 echo \format_udehauthoring\utils::breadCrumb($courseplan);
 
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavigation', 'init');
+echo \format_udehauthoring\utils::mainMenu($courseplan, substr($ME, strrpos($ME, '/') + 1));
 
 $toolList = [];
 foreach ($subquestionplan->explorations as $exploration) {
@@ -112,7 +112,9 @@ $PAGE->requires->js_call_amd('format_udehauthoring/phpHelper', 'init',
         'sectionId' => $sectionplan->id,
         'subQuestionId' => $subquestionid,
         'toolList' => $toolList])));
-echo \format_udehauthoring\utils::mainMenu($courseplan, substr($ME, strrpos($ME, '/') + 1));
+
+echo \format_udehauthoring\titlesUtils::buildTitlesModal($courseplan->id);
+echo \format_udehauthoring\modalUtils::buildWarningModal();
 
 // find section index
 $ii = 0;
@@ -120,7 +122,7 @@ while ($courseplan->sections[$ii]->id != $sectionplan->id) {
     ++$ii;
 }
 if ($ii === count($courseplan->sections)) {
-    print_error('sectionmissing');
+    throw new \moodle_exception('sectionmissing');
 }
 $sectionindex = $ii + 1;
 
@@ -130,12 +132,12 @@ while ($sectionplan->subquestions[$jj]->id != $subquestionplan->id) {
     ++$jj;
 }
 if ($jj === count($sectionplan->subquestions)) {
-    print_error('subquestionmissing');
+    throw new \moodle_exception('subquestionmissing');
 }
 $subquestionindex = $jj;
 
 $previewurl = utils::getPreviewUrl($course->id, $sectionindex, $subquestionindex);
-echo \format_udehauthoring\utils::navBar($courseplan->title, $courseplan->courseid, $previewurl);
+echo \format_udehauthoring\utils::navBar($courseplan->courseid, $previewurl);
 
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavBar', 'initNavBar');
 
@@ -143,8 +145,12 @@ echo \format_udehauthoring\utils::mainProgress($courseplan);
 $PAGE->requires->js_call_amd('format_udehauthoring/mainProgress', 'init');
 
 $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'exportCourse', array($courseplan->courseid));
-$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'publishCoursePlan', array(array($courseplan->id, $courseplan->courseid)));
-
+$PAGE->requires->js_call_amd(
+    'format_udehauthoring/helper',
+    'publishCoursePlan',
+    array(array($courseplan->id, $courseplan->courseid))
+);
+$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'initSaveWarningModal');
 $form->display();
 
 echo \html_writer::end_tag('div');

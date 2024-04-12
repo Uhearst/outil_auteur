@@ -16,15 +16,15 @@
 
 /**
  * @package   format_udehauthoring
- * @copyright 2022 SOFAD
+ * @copyright 2023 SOFAD
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version =  2022081700;
-$plugin->requires = 2021051703;
+$plugin->version =  2024041000;
+$plugin->requires = 2022112800;
 $plugin->component = 'format_udehauthoring';
 
-$plugin->release  = '1.0.1 Stable (Build - 2022081700)';
+$plugin->release  = '2.0 Stable (Build - 2024041000)';
 $plugin->maturity  = MATURITY_STABLE;

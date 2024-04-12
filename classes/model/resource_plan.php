@@ -11,6 +11,7 @@ class resource_plan
     public $id = null;
     public $audehsubquestionid = null;
     public $title = null;
+    public $titleformat = null;
     public $link = null;
     public $vignette = null;
     public $timemodified = null;
@@ -22,7 +23,7 @@ class resource_plan
      * @return array
      * @throws \dml_exception
      */
-    public static function instance_all_by_subquestion_plan_id($audehsubquestionid) {
+    public static function instance_all_by_subquestion_plan_id($audehsubquestionid, $context = null) {
         global $DB;
 
         $records = $DB->get_records('udehauthoring_resource', ['audehsubquestionid' => $audehsubquestionid]);
@@ -36,6 +37,20 @@ class resource_plan
             $resourceplan->title = $record->title;
             $resourceplan->link = $record->link;
             $resourceplan->timemodified = $record->timemodified;
+            if ($context) {
+                $options = format_udehauthoring_get_editor_options($context);
+
+                $resourceplan = file_prepare_standard_editor(
+                    $resourceplan,
+                    'title',
+                    $options,
+                    $context,
+                    'format_udehauthoring',
+                    'course_resource_title_' . $resourceplan->id,
+                    0
+                );
+
+            }
             $resourceplans[] = $resourceplan;
         }
 
@@ -56,8 +71,8 @@ class resource_plan
         $record = $DB->get_record('udehauthoring_resource', ['id' => $id], '*', MUST_EXIST);
 
         $resourceplan = new self();
-        foreach($resourceplan as $key => $_) {
-            if($key != 'vignette') {
+        foreach ($resourceplan as $key => $_) {
+            if ($key != 'vignette' && str_ends_with($key, 'format')) {
                 $resourceplan->$key = $record->$key;
             }
         }
@@ -75,20 +90,27 @@ class resource_plan
             }
         }
 
-        if (isset($record->id)) {
-            utils::db_update_if_changes('udehauthoring_resource', $record);
-        } else {
+        if (!isset($record->id)) {
             $record->timemodified = time();
             $this->id = $DB->insert_record('udehauthoring_resource', $record);
+            $record->id = $this->id;
         }
-        if($fromregularsave) {
+
+        if ($fromregularsave) {
             utils::file_save_draft_area_files($this->vignette, $context->id, 'format_udehauthoring', 'resourcevignette',
                 $this->id);
         }
 
+        if (!empty($this->title_editor)) {
+            $record = utils::prepareEditorContent($this, $record, $context, 'title', 'course_resource_');
+        }
+
+        if (isset($record->id)) {
+            utils::db_update_if_changes('udehauthoring_resource', $record);
+        }
     }
 
-    public function delete() {
+    public function delete($context) {
         global $DB;
 
 
@@ -107,6 +129,7 @@ class resource_plan
             utils::db_bump_timechanged('udehauthoring_resource', $following_sibling->id);
         }
 
+        utils::deleteAssociatedAutoSavesAndFiles($context, 'course_resource_title_' . $this->id);
 
         return $DB->delete_records('udehauthoring_resource', ['id' => $this->id]);
     }

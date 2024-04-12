@@ -9,7 +9,3 @@ export function initCourse() {
     appendSizeToFileManager();
     handleEmbed('fitem_id_course_introduction_embed', 'fitem_id_course_introduction');
 }
-
-/**
- *
- */

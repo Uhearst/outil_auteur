@@ -3,7 +3,6 @@
  */
 export function initNotification() {
     let userNotification = document.getElementById('user-notifications');
-    userNotification.classList.add('custom-user-notifications');
     if (userNotification) {
         for (let i = 0; i < userNotification.children.length; i++) {
             let validIcon = document.createElement('img');
@@ -22,7 +21,7 @@ export function initNotification() {
                 }
             }
 
-            setTimeout(function() {
+            setTimeout(function () {
                 if (userNotification.children[i]) {
                     userNotification.children[i].remove();
                 }
@@ -40,6 +39,7 @@ export function addNotification(msg, type) {
     let alertButton = document.createElement('button');
 
     let notificationContainer = document.getElementById('user-notifications');
+    notificationContainer.classList.add('custom-user-notifications');
 
     if (type === 1) {
         alertContainer.setAttribute('class', 'alert alert-success alert-block fade in ');
@@ -53,13 +53,15 @@ export function addNotification(msg, type) {
     alertButton.setAttribute('type', 'button');
     alertButton.setAttribute('class', 'close');
     alertButton.setAttribute('data-dismiss', 'alert');
-    alertButton.innerHTML = 'x';
+    alertButton.innerHTML = '';
 
     alertContainer.appendChild(alertButton);
     alertContainer.innerHTML = alertContainer.innerHTML + msg;
 
-    notificationContainer.appendChild(alertContainer);
-    window.$('html, body').animate({scrollTop: 0}, 'fast');
+    if (window.$('#user-notifications').children().length === 0) {
+        notificationContainer.appendChild(alertContainer);
+    }
+    window.$('html, body').animate({ scrollTop: 0 }, 'fast');
     alertButton.setAttribute('onclick', 'this.parentNode.remove()');
     initNotification();
 }

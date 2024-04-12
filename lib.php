@@ -4,14 +4,14 @@ use format_udehauthoring\menu_node;
 
 require_once($CFG->dirroot. '/course/format/lib.php');
 
-class format_udehauthoring extends format_base {
+class format_udehauthoring extends core_courseformat\base {
 
     public function uses_sections() {
         return true;
     }
 
     /**
-     * Add a authoring link to the left menu of the course
+     * Add an authoring link to the left menu of the course
      *
      * @param global_navigation $navigation
      * @param navigation_node $node
@@ -19,8 +19,13 @@ class format_udehauthoring extends format_base {
      * @throws coding_exception
      * @throws moodle_exception
      */
+    // Used for classic theme
     public function extend_course_navigation($navigation, navigation_node $node) {
-        if (has_capability('format/udehauthoring:redact', \context_course::instance($this->courseid))) {
+        global $DB;
+
+        $course = $DB->get_record('course', ['id' => $this->courseid]);
+
+        if (has_capability('format/udehauthoring:redact', \context_course::instance($this->courseid)) && $course->format === 'udehauthoring') {
             $edit = navigation_node::create(
                 get_string('redactcourse', 'format_udehauthoring'),
                 new \moodle_url('/course/format/udehauthoring/redact/course.php', ['course_id' => $this->courseid], 'displayable-form-informations-container'),
@@ -28,9 +33,11 @@ class format_udehauthoring extends format_base {
                 get_string('redactcourseshort', 'format_udehauthoring'),
                 'authoringudehedit',
                 new pix_icon('i/edit', ''));
-            $node->add_node($edit, 'participants');
+            $node->add_node($edit);
         }
     }
+
+
 
     /**
      * Prepares necessary data for rendering the header menu
@@ -117,7 +124,7 @@ function format_udehauthoring_pluginfile($course, $cm, $context, $filearea, $arg
     }
 
     // Make sure the filearea is one of those used by the plugin.
-    if ($filearea !== 'courseintroduction') {
+    if (!str_starts_with($filearea, 'course')) {
         return false;
     }
 
@@ -152,4 +159,42 @@ function format_udehauthoring_pluginfile($course, $cm, $context, $filearea, $arg
 
     // We can now send the file back to the browser - in this case with a cache lifetime of 1 day and no filtering.
     send_stored_file($file, 86400, 0, $forcedownload, $options);
+}
+
+// Used for secondary navigation
+function format_udehauthoring_extend_navigation_course($navigation, $course, $context) {
+    global $PAGE;
+
+    if (has_capability('format/udehauthoring:redact', \context_course::instance($PAGE->course->id))
+        && $course->format === 'udehauthoring') {
+        $edit = navigation_node::create(
+            get_string('redactcourse', 'format_udehauthoring'),
+            new \moodle_url('/course/format/udehauthoring/redact/course.php', ['course_id' => $PAGE->course->id], 'displayable-form-informations-container'),
+            navigation_node::TYPE_SETTING,
+            get_string('redactcourseshort', 'format_udehauthoring'),
+            'authoringudehedit',
+            new pix_icon('i/edit', ''));
+        $navigation->add_node($edit);
+    }
+}
+
+/**
+ * Return the editor options for format_udehauthoring
+ *
+ * @param  stdClass $context context object
+ * @return array array containing the editor and attachment options
+ * @since  Moodle 3.2
+ */
+function format_udehauthoring_get_editor_options($context) {
+
+    return array(
+        'subdirs' => 1,
+        'maxbytes' => 100000000,
+        'maxfiles' => 1,
+        'changeformat' => 1,
+        'context' => $context ? $context : 0,
+        'noclean' => 1,
+        'trusttext' => 1,
+        'autosave' => 0
+    );
 }

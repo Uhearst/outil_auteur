@@ -1,4 +1,4 @@
-import * as Str from 'core/str';
+import {get_string as getString} from 'core/str';
 import {addNotification} from "./notificationHelper";
 
 /**
@@ -35,19 +35,16 @@ export function initEditTools(params) {
         let newButton = buttonsContainer.children[1].cloneNode(true);
         newButton.children[0].children[0].name = 'submitbutton3';
         newButton.children[0].children[0].id = 'id_submitbutton3';
-        var strings = [
-            {
-                key: 'saveandreturntoredact',
-                component: 'format_udehauthoring'
-            },
-        ];
-        Str.get_strings(strings).then(function(results) {
-            if (results === [] || results === null) {
+
+        getString('saveandreturntoredact', 'format_udehauthoring')
+            .then(
+                (valueString) => {
+                    newButton.children[0].children[0].value = valueString;
+                }
+            )
+            .catch(() => {
                 newButton.children[0].children[0].value = 'Enregistrer et retourner à la rédaction';
-            } else {
-                newButton.children[0].children[0].value = results[0];
-            }
-        });
+            });
 
         newButton.children[1].id = 'id_error_submitbutton3';
         buttonsContainer.insertBefore(newButton, buttonsContainer.children[2]);
@@ -72,7 +69,7 @@ export function initRedactTools(type, toolList) {
  */
 function appendDataToSubmit() {
     let inputToAppend = document.createElement('input');
-    document.getElementById('udeh-form').addEventListener("submit", function(e) {
+    document.getElementById('udeh-form').addEventListener("submit", async function(e) {
         if (e.submitter && e.submitter.name.includes('generate_tool')) {
             e.preventDefault();
             let n = window.location.pathname.lastIndexOf('/');
@@ -83,8 +80,9 @@ function appendDataToSubmit() {
                     e.submitter.name.indexOf(']')
                 );
                 let explorationIdHolder = document.querySelector('[name="exploration_id[' + index + ']"]');
+
                 if (explorationIdHolder === null || explorationIdHolder.value === "0") {
-                    addNotification('Vous devez enregistrer l\'exploration avant d\'y associer un outil.', 2);
+                    addNotification(await getString('notificationerrorsaveexplo', 'format_udehauthoring'), 2);
                     return;
                 }
             }
@@ -120,7 +118,8 @@ function appendSingleEvaluationLinkToRedactForm(evalName) {
     let evaluationId = null;
     let evaluationIdHolder = document.querySelector('[name="id"]');
     if (evaluationToolLink.value === null
-        || evaluationToolLink.value === '') {
+        || evaluationToolLink.value === ''
+        || evalName === '') {
         urlDisplayer.style = "display:none;";
         return;
     } else {
@@ -160,7 +159,8 @@ function appendMultipleEvaluationLinkToRedactForm(evaluationToolsLink, toolList)
         let evaluationId = null;
         let evaluationIdHolder = document.querySelector('[name="evaluation_id[' + toolIndex + ']"]');
         if (evaluationToolLink.value === null
-            || evaluationToolLink.value === '') {
+            || evaluationToolLink.value === ''
+            || toolList[toolIndex] === '') {
             urlDisplayer.style = "display:none;";
             return;
         } else {
@@ -193,10 +193,15 @@ function appendMultipleEvaluationLinkToRedactForm(evaluationToolsLink, toolList)
 function appendExplorationLinkToRedactForm(toolList) {
     let explorationToolsLink = document.querySelectorAll('[name^="exploration_tool_cmid["]');
     explorationToolsLink.forEach(explorationToolLink => {
+
         let toolIndex = explorationToolLink.name.slice(explorationToolLink.name.indexOf('[') + 1,
             explorationToolLink.name.lastIndexOf(']'));
         let urlDisplayer = document.getElementById('fgroup_id_url_group_' + toolIndex);
 
+        if (toolList[toolIndex] === '' || toolList[toolIndex] === null || toolList[toolIndex] === undefined) {
+            urlDisplayer.style = "display:none;";
+            return;
+        }
         let subquestionId = null;
         if (window.location.href.indexOf('=') === -1) {
             subquestionId = 0;
@@ -204,6 +209,7 @@ function appendExplorationLinkToRedactForm(toolList) {
             subquestionId = window.location.href.substring(window.location.href.indexOf('=') + 1);
         }
         let explorationId = null;
+
         let explorationIdHolder = document.querySelector('[name="exploration_id[' + toolIndex + ']"]');
         if (explorationIdHolder === null
             || explorationIdHolder.value === "0"

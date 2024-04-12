@@ -20,12 +20,22 @@
         <FIELD NAME="coursezoomlink" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="title" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="question" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="questionformat" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="questiontrust" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="embed" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="isembed" TYPE="int" LENGTH="1" NOTNULL="true" SEQUENCE="false" DEFAULT="0"/>
         <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="descriptionformat" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="descriptiontrust" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="problematic" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="problematicformat" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="problematictrust" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="place" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="placeformat" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="placetrust" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="method" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="methodformat" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="methodtrust" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="bibliography" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="attendance" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="plagiarism" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
@@ -76,6 +86,8 @@
         <FIELD NAME="isembed" TYPE="int" LENGTH="1" NOTNULL="true" SEQUENCE="false" DEFAULT="0"/>
         <FIELD NAME="question" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="comments" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="isvisiblepreview" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false" DEFAULT="1"/>
+        <FIELD NAME="isvisible" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false" DEFAULT="1"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
       </FIELDS>
       <KEYS>
@@ -104,6 +116,32 @@
         <KEY NAME="audehcourseidfk" TYPE="foreign" FIELDS="audehcourseid" REFTABLE="udehauthoring_course" REFFIELDS="id"/>
       </KEYS>
     </TABLE>
+    <TABLE NAME="udehauthoring_eval_sect" COMMENT="Evaluation - module associations">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="audehevaluationid" TYPE="int" LENGTH="11" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="audehsectionid" TYPE="int" LENGTH="11" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="audehevaluationidfk" TYPE="foreign" FIELDS="audehevaluationid" REFTABLE="udehauthoring_evaluation" REFFIELDS="id"/>
+        <KEY NAME="audehsectionidfk" TYPE="foreign" FIELDS="audehsectionid" REFTABLE="udehauthoring_section" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="udehauthoring_add_info" COMMENT="Informations supplémentaires">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="audehcourseid" TYPE="int" LENGTH="11" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="title" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="content" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="audehcourseidfk" TYPE="foreign" FIELDS="audehcourseid" REFTABLE="udehauthoring_course" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
     <TABLE NAME="udehauthoring_sub_question" COMMENT="Sub question data input in the authoring tool">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
@@ -129,7 +167,7 @@
         <FIELD NAME="activityfreetype" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="temporality" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="location" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
-        <FIELD NAME="grouping" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="party" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="ismarked" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="evaluationtype" TYPE="int" LENGTH="1" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="length" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
@@ -207,6 +245,22 @@
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
         <KEY NAME="audehevaluationidfk" TYPE="foreign" FIELDS="audehevaluationid" REFTABLE="udehauthoring_evaluation" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="udehauthoring_title" COMMENT="Permits custom titles on published interface">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="audehcourseid" TYPE="int" LENGTH="11" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="module" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="question" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="question_explore" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="question_hide" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="question_sub" TYPE="text" NOTNULL="true" SEQUENCE="false" />
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="audehcourseidfk" TYPE="foreign" FIELDS="audehcourseid" REFTABLE="udehauthoring_course" REFFIELDS="id"/>
       </KEYS>
     </TABLE>
   </TABLES>

@@ -11,6 +11,7 @@ class teachingobjective_plan
     public $id = null;
     public $audehcourseid = null;
     public $teachingobjective = null;
+    public $teachingobjectiveformat = null;
     public $learningobjectives = null;
     public $timemodified = null;
 
@@ -21,7 +22,7 @@ class teachingobjective_plan
      * @return array
      * @throws \dml_exception
      */
-    public static function instance_all_by_course_plan_id($audehcourseid) {
+    public static function instance_all_by_course_plan_id($audehcourseid, $context = null) {
         global $DB;
 
         $records = $DB->get_records('udehauthoring_teaching_obj', ['audehcourseid' => $audehcourseid]);
@@ -33,8 +34,23 @@ class teachingobjective_plan
             $teachingobjective->id = $record->id;
             $teachingobjective->audehcourseid = $record->audehcourseid;
             $teachingobjective->teachingobjective = $record->teachingobjective;
-            $teachingobjective->learningobjectives = learningobjective_plan::instance_all_by_teaching_objective_plan_id($teachingobjective->id);
+            $teachingobjective->learningobjectives =
+                learningobjective_plan::instance_all_by_teaching_objective_plan_id($teachingobjective->id);
             $teachingobjective->timemodified = $record->timemodified;
+
+            if ($context) {
+                $options = format_udehauthoring_get_editor_options($context);
+                $teachingobjective = file_prepare_standard_editor(
+                    $teachingobjective,
+                    'teachingobjective',
+                    $options,
+                    $context,
+                    'format_udehauthoring',
+                    'course_teachingobjective_' . $teachingobjective->id,
+                    0
+                );
+            }
+
 
             $teachingobjectiveplans[] = $teachingobjective;
         }
@@ -58,31 +74,45 @@ class teachingobjective_plan
         foreach($teachingobjectiveplan as $key => $_) {
             if('learningobjectives' === $key) {
                 $teachingobjectiveplan->$key = learningobjective_plan::instance_all_by_teaching_objective_plan_id($teachingobjectiveplan->id);
-            }  else {
+            }  elseif(!str_contains($key, 'format')) {
                 $teachingobjectiveplan->$key = $record->$key;
             }
         }
         return $teachingobjectiveplan;
     }
 
-    public function save() {
+    public function save($context) {
         global $DB;
         $record = new \stdClass();
         $record->audehcourseid = $this->audehcourseid;
         if($this->id) $record->id = $this->id;
         if($this->teachingobjective) $record->teachingobjective = $this->teachingobjective;
 
+        if ((!isset($record->id) || $record->id === '') && (isset($record->teachingobjective) || $this->teachingobjective_editor['text'] !== '')) {
+            $record->timemodified = time();
+            if (!isset($record->title)) { $record->title = ''; }
+            $this->id = $DB->insert_record('udehauthoring_teaching_obj', $record);
+            $record->id = $this->id;
+            foreach ($this->learningobjectives as $learningobjective) {
+                $learningobjective->audehteachingobjectiveid = $this->id;
+            }
+        }
+
+        if (!empty($this->teachingobjective_editor)) {
+            $record = utils::prepareEditorContent(
+                $this,
+                $record,
+                $context,
+                'teachingobjective',
+                'course_'
+            );
+        }
+
         if (isset($record->id)) {
             if (isset($record->teachingobjective)) {
                 utils::db_update_if_changes('udehauthoring_teaching_obj', $record);
             } else {
                 $this->delete();
-            }
-        } else if (isset($record->teachingobjective)) {
-            $record->timemodified = time();
-            $this->id = $DB->insert_record('udehauthoring_teaching_obj', $record);
-            foreach ($this->learningobjectives as $learningobjective) {
-                $learningobjective->audehteachingobjectiveid = $this->id;
             }
         }
 
@@ -91,10 +121,10 @@ class teachingobjective_plan
         $learning_record_ids = $DB->get_records('udehauthoring_learning_obj', ['audehteachingobjectiveid' => $this->id], '', 'id');
         foreach ($this->learningobjectives as $learningobjective) {
             $input_learnings_id[$learningobjective->id] = $learningobjective->id;
-            if ($learningobjective->id && empty($learningobjective->learningobjective)) {
+            if ($learningobjective->id && (empty($learningobjective->learningobjective) && $this->teachingobjective_editor['text'] === '')) {
                 $learningobjective->delete();
             } else {
-                $learningobjective->save();
+                $learningobjective->save($context);
             }
         }
 
@@ -124,8 +154,21 @@ class teachingobjective_plan
         foreach ($following_siblings as $following_sibling) {
             utils::db_bump_timechanged('udehauthoring_teaching_obj', $following_sibling->id);
         }
+        $learningObjs = $DB->get_records('udehauthoring_learning_obj', ['audehteachingobjectiveid' => $this->id]);
+        $courseId = $DB->get_record('udehauthoring_course', ['id' => $this->audehcourseid])->courseid;
+        $context = \context_course::instance($courseId);
+        foreach ($learningObjs as $learningObj) {
+            utils::deleteAssociatedAutoSavesAndFiles(
+                $context,
+                'course_learningobjective_' . $this->id . '_' . $learningObj->id
+            );
+            $DB->delete_records('udehauthoring_learning_obj', ['id' => $learningObj->id]);
+        }
 
-        $DB->delete_records('udehauthoring_learning_obj', ['audehteachingobjectiveid' => $this->id]);
+
+        $courseId = $DB->get_record('udehauthoring_course', ['id' => $this->audehcourseid])->courseid;
+        $context = \context_course::instance($courseId);
+        utils::deleteAssociatedAutoSavesAndFiles($context, 'course_teachingobjective_' . $this->id);
 
         return $DB->delete_records('udehauthoring_teaching_obj', ['id' => $this->id]);
     }

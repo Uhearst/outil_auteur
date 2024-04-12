@@ -111,7 +111,7 @@ class backup_format_udehauthoring_plugin extends backup_format_plugin {
         $subquestion_plan->add_child($exploration_plans);
 
         $exploration_plan = new backup_nested_element('udeha_exploration', ['id'], [
-            'title', 'question', 'activitytype', 'activityfreetype', 'temporality', 'location', 'grouping', 'ismarked', 'evaluationtype',
+            'title', 'question', 'activitytype', 'activityfreetype', 'temporality', 'location', 'party', 'ismarked', 'evaluationtype',
             'length', 'instructions', 'timemodified'
         ]);
         $exploration_plans->add_child($exploration_plan);

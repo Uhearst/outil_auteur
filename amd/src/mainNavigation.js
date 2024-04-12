@@ -3,7 +3,7 @@
  */
 export function init() {
     updateVisibleForm();
-    window.addEventListener('hashchange', function() {
+    window.addEventListener('hashchange', function () {
         updateVisibleForm();
     });
 }
@@ -25,7 +25,37 @@ function updateVisibleForm() {
             showMask(anchor);
         }
     }
+
+    setDirtyForm();
 }
+
+const setDirtyForm = () => {
+    let form = document.querySelector('#udeh-form');
+    let inputs = form.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+        input.addEventListener('change', () => {
+            if (form.dataset.changed !== 'true') {
+                form.dataset.changed = 'true';
+            }
+        });
+    });
+
+    let interval = setInterval(function() {
+        let iframes = form.querySelectorAll('iframe');
+        iframes.forEach(iframe => {
+            let iframeBody = iframe.contentWindow.document.body;
+            if (iframeBody) {
+                iframeBody.addEventListener('keyup', () => {
+                    if (form.dataset.changed !== 'true') {
+                        form.dataset.changed = 'true';
+                    }
+                });
+            }
+        });
+
+        clearInterval(interval);
+    }, 3000);
+};
 
 /**
  *

@@ -16,16 +16,20 @@ class exploration_plan
     public $question = null;
     public $activitytype = null;
     public $activityfreetype = null;
+    public $activityfreetypeformat = null;
     public $temporality = null;
     public $location = null;
-    public $grouping = null;
+    public $party = null;
     public $ismarked = null;
     public $evaluationtype = null;
     public $length = null;
     public $instructions = null;
+    public $instructionsformat = null;
     public $timemodified = null;
     public $tooltype = null;
     public $toolcmid = null;
+
+    const EDITORS = ['activityfreetype', 'instructions'];
 
     /**
      * return list of available tools.
@@ -53,26 +57,26 @@ class exploration_plan
 
     public static function activity_type_list() {
         return [
-            'Accueil et brise glace',
-            'Remues-méninges',
-            'Exposé/Présentation',
-            'Discussion de groupes',
-            'Débat',
-            'Entretien',
-            'Étude de cas',
-            'Simulation',
-            'Laboratoire',
-            'Pratique guidée (modélisation)',
-            'Pratique Autonome',
-            'Exploration/recherche documentaire',
-            'Création d\'une infographie',
-            'Production audio',
-            'Production vidéo',
-            'Production d\'une réflexion critique',
-            'Production d\'une synthèse',
-            'Production d\'une analyse comparative',
-            'Questionnaire',
-            'Ajouter votre activité'
+            get_string('explorationhome', 'format_udehauthoring'),
+            get_string('explorationbrainstorming', 'format_udehauthoring'),
+            get_string('explorationpresentation', 'format_udehauthoring'),
+            get_string('explorationgroupdiscussion', 'format_udehauthoring'),
+            get_string('explorationdebate', 'format_udehauthoring'),
+            get_string('explorationinterview', 'format_udehauthoring'),
+            get_string('explorationcasestudy', 'format_udehauthoring'),
+            get_string('explorationsimulation', 'format_udehauthoring'),
+            get_string('explorationlaboratory', 'format_udehauthoring'),
+            get_string('explorationguidedpractice', 'format_udehauthoring'),
+            get_string('explorationindependentpractice', 'format_udehauthoring'),
+            get_string('explorationdocumentaryresearch', 'format_udehauthoring'),
+            get_string('explorationinfographiccreation', 'format_udehauthoring'),
+            get_string('explorationaudioproduction', 'format_udehauthoring'),
+            get_string('explorationvideoproduction', 'format_udehauthoring'),
+            get_string('explorationcriticalreflection', 'format_udehauthoring'),
+            get_string('explorationsynthesisproduction', 'format_udehauthoring'),
+            get_string('explorationcomparativeanalysis', 'format_udehauthoring'),
+            get_string('explorationquestionnaire', 'format_udehauthoring'),
+            get_string('explorationaddactivity', 'format_udehauthoring')
         ];
     }
 
@@ -83,9 +87,9 @@ class exploration_plan
 
     public static function locations_list() {
         return [
-            'En ligne',
-            'A la maison',
-            'En salle de classe'
+            get_string('explorationonline', 'format_udehauthoring'),
+            get_string('explorationathome', 'format_udehauthoring'),
+            get_string('explorationinclassroom', 'format_udehauthoring')
         ];
     }
 
@@ -94,17 +98,18 @@ class exploration_plan
         return $locationslist[$index];
     }
 
-    public static function grouping_list() {
+    // TODO
+    public static function party_list() {
         return [
-            'Individuel',
-            'Paires',
-            'Groupes'
+            get_string('explorationindividual', 'format_udehauthoring'),
+            get_string('explorationpairs', 'format_udehauthoring'),
+            get_string('explorationgroups', 'format_udehauthoring')
         ];
     }
 
-    public static function get_grouping_from_index($index) {
-        $groupingslist = self::grouping_list();
-        return $groupingslist[$index];
+    public static function get_party_from_index($index) {
+        $partyslist = self::party_list();
+        return $partyslist[$index];
     }
 
     /**
@@ -114,7 +119,7 @@ class exploration_plan
      * @return array
      * @throws \dml_exception
      */
-    public static function instance_all_by_subquestion_plan_id($audehsubquestionid) {
+    public static function instance_all_by_subquestion_plan_id($audehsubquestionid, $context = null) {
         global $DB;
 
         $records = $DB->get_records('udehauthoring_exploration', ['audehsubquestionid' => $audehsubquestionid]);
@@ -128,17 +133,30 @@ class exploration_plan
             $explorationplan->activitytype = $record->activitytype;
             $explorationplan->activityfreetype = $record->activityfreetype;
             $explorationplan->temporality = $record->temporality;
-            $explorationplan->grouping = $record->grouping;
+            $explorationplan->party = $record->party;
             $explorationplan->ismarked = $record->ismarked;
             $explorationplan->evaluationtype = $record->evaluationtype;
             $explorationplan->length = $record->length;
             $explorationplan->instructions = $record->instructions;
             $explorationplan->location = $record->location;
             $explorationplan->timemodified = $record->timemodified;
-            $relatedtoolcmid = explorationtool_plan::get_related_cmid($record->id);
-            $explorationplan->toolcmid= $relatedtoolcmid;
-            $relatedtooltype = explorationtool_plan::get_related_tool_type($record->id);
-            $explorationplan->tooltype= $relatedtooltype;
+            $explorationplan->toolcmid= explorationtool_plan::get_related_cmid($record->id);
+            $explorationplan->tooltype= explorationtool_plan::get_related_tool_type($record->id);
+
+            if ($context) {
+                $options = format_udehauthoring_get_editor_options($context);
+                foreach (self::EDITORS as $editor) {
+                    $explorationplan = file_prepare_standard_editor(
+                        $explorationplan,
+                        $editor,
+                        $options,
+                        $context,
+                        'format_udehauthoring',
+                        'course_exploration_' . $editor . '_' . $explorationplan->id,
+                        0
+                    );
+                }
+            }
 
             $explorationplans[] = $explorationplan;
         }
@@ -161,7 +179,7 @@ class exploration_plan
 
         $explorationplan = new self();
         foreach($explorationplan as $key => $_) {
-            if($key != 'media' && $key != 'toolcmid' && $key != 'tooltype') {
+            if($key != 'media' && $key != 'toolcmid' && $key != 'tooltype' && !str_ends_with($key, 'format')) {
                 $explorationplan->$key = $record->$key;
             }
         }
@@ -169,7 +187,7 @@ class exploration_plan
         return $explorationplan;
     }
 
-    public function save() {
+    public function save($context) {
         global $DB;
 
         $record = new \stdClass();
@@ -179,15 +197,24 @@ class exploration_plan
             }
         }
 
-        if (isset($record->id)) {
-            utils::db_update_if_changes('udehauthoring_exploration', $record);
-        } else {
+        if (!isset($record->id)) {
             $record->timemodified = time();
             $this->id = $DB->insert_record('udehauthoring_exploration', $record);
+            $record->id = $this->id;
+        }
+
+        foreach (self::EDITORS as $editor) {
+            if (!empty($this->{$editor.'_editor'})) {
+                $record = utils::prepareEditorContent($this, $record, $context, $editor, 'course_exploration_');
+            }
+        }
+
+        if (isset($record->id)) {
+            utils::db_update_if_changes('udehauthoring_exploration', $record);
         }
     }
 
-    public function delete() {
+    public function delete($context) {
         global $DB;
 
         utils::db_bump_timechanged('udehauthoring_sub_question', $this->audehsubquestionid);
@@ -206,6 +233,10 @@ class exploration_plan
         }
 
         $DB->delete_records('udehauthoring_exp_tool', ['audehexplorationid' => $this->id]);
+
+        foreach (self::EDITORS as $editor) {
+            utils::deleteAssociatedAutoSavesAndFiles($context, 'course_exploration_' . $editor .'_' . $this->id);
+        }
 
         return $DB->delete_records('udehauthoring_exploration', ['id' => $this->id]);
     }

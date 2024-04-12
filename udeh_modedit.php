@@ -23,6 +23,8 @@
 * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
 */
 
+global $PAGE, $DB, $OUTPUT, $CFG;
+
 require_once("../../../config.php");
 require_once($CFG->dirroot.  '/course/lib.php');
 require_once($CFG->dirroot . '/course/format/udehauthoring/classes/model/explorationtool_plan.php');
@@ -32,15 +34,17 @@ require_once($CFG->libdir.'/completionlib.php');
 require_once($CFG->libdir.'/plagiarismlib.php');
 require_once($CFG->dirroot . '/course/modlib.php');
 
-$add    = optional_param('add', '', PARAM_ALPHANUM);     // Module name.
+$add    = optional_param('add', '', PARAM_ALPHANUM); // Module name.
 $update = optional_param('update', 0, PARAM_INT);
 $return = optional_param('return', 0, PARAM_BOOL);    //return to course/view.php if false or mod/modname/view.php if true
-$type   = optional_param('type', '', PARAM_ALPHANUM); //TODO: hopefully will be removed in 2.0
+$type   = optional_param('type', '', PARAM_ALPHANUM);
 $sectionreturn = optional_param('sr', null, PARAM_INT);
 $subquestionid = optional_param('subquestionid', 0, PARAM_INT);
 $explorationid = optional_param('explorationid', 0, PARAM_INT);
 $evaluationid = optional_param('evaluationid', 0, PARAM_INT);
 $isglobal = optional_param('isglobal', 0, PARAM_INT);
+
+echo '<!doctype html>';
 
 $url = new moodle_url('/course/format/udehauthoring/udeh_modedit.php');
 $url->param('sr', $sectionreturn);
@@ -83,7 +87,7 @@ if (!empty($add)) {
     $courseformat = course_get_format($course);
     $maxsections = $courseformat->get_max_sections();
     if ($section > $maxsections) {
-        print_error('maxsectionslimit', 'moodle', '', $maxsections);
+        throw new moodle_exception('maxsectionslimit', 'moodle', '', $maxsections);
     }
 
     list($module, $context, $cw, $cm, $data) = prepare_new_moduleinfo_data($course, $add, $section);
@@ -98,11 +102,11 @@ if (!empty($add)) {
     }
 
     $data->add = $add;
-    if (!empty($type)) { //TODO: hopefully will be removed in 2.0
+    if (!empty($type)) {
         $data->type = $type;
     }
 
-    $sectionname = get_section_name($course, $cw);
+    $sectionname = 'Module 1';//get_section_name($course, $cw);
     $fullmodulename = get_string('modulename', $module->name);
 
     if ($data->section && $course->format != 'site') {
@@ -144,7 +148,7 @@ if (!empty($add)) {
     }
     $data->update = $update;
 
-    $sectionname = get_section_name($course, $cw);
+    $sectionname = 'Module 1';//get_section_name($course, $cw);
     $fullmodulename = get_string('modulename', $module->name);
 
     if ($data->section && $course->format != 'site') {
@@ -159,11 +163,11 @@ if (!empty($add)) {
 
 } else {
     require_login();
-    print_error('invalidaction');
+    throw new moodle_exception('invalidaction');
 }
 
 $pagepath = 'mod-' . $module->name . '-';
-if (!empty($type)) { //TODO: hopefully will be removed in 2.0
+if (!empty($type)) {
     $pagepath .= $type;
 } else {
     $pagepath .= 'mod';
@@ -175,7 +179,7 @@ $modmoodleform = "$CFG->dirroot/mod/$module->name/mod_form.php";
 if (file_exists($modmoodleform)) {
     require_once($modmoodleform);
 } else {
-    print_error('noformdesc');
+    throw new moodle_exception('noformdesc');
 }
 
 $mformclassname = 'mod_'.$module->name.'_mod_form';
@@ -198,7 +202,7 @@ if ($mform->is_cancelled()) {
     } else if (!empty($fromform->add)) {
         $fromform = add_moduleinfo($fromform, $course, $mform);
     } else {
-        print_error('invaliddata');
+        throw new moodle_exception('invaliddata');
     }
     if ($subquestionid) {
         $exptool = \format_udehauthoring\model\explorationtool_plan::instance_by_audehexplorationid($explorationid);

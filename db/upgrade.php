@@ -422,5 +422,148 @@ function xmldb_format_udehauthoring_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2022062000, 'format', 'udehauthoring');
     }
 
+    if($oldversion < 2023042800) {
+        $table = new xmldb_table('udehauthoring_section');
+        $field = new xmldb_field('isvisible', XMLDB_TYPE_INTEGER, '1', XMLDB_UNSIGNED, null, null, 1, 'comments');
+        $field->setDefault(1);
+
+        //$DB->execute("UPDATE {udehauthoring_section} SET isvisible = 1 WHERE 1");
+
+        // Conditionally launch add field timemodified.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2023042800, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2023050200) {
+        $table = new xmldb_table('udehauthoring_section');
+        $field = new xmldb_field('isvisiblepreview', XMLDB_TYPE_INTEGER, '1', XMLDB_UNSIGNED, null, null, 1, 'isvisible');
+        $field->setDefault(1);
+
+        //$DB->execute("UPDATE {udehauthoring_section} SET isvisible = 1 WHERE 1");
+
+        // Conditionally launch add field timemodified.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2023050200, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2023050500) {
+        $now = time();
+        if (!$dbman->table_exists('udehauthoring_eval_sect')) {
+            $table = new xmldb_table('udehauthoring_eval_sect');
+
+            $table->add_field('id', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+            $table->add_field('audehsectionid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+            $table->add_field('audehevaluationid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+
+            $table->add_key('id', XMLDB_KEY_PRIMARY, array('id'));
+            $table->add_key('audehevaluationidfk', XMLDB_KEY_FOREIGN, ['audehevaluationid'], 'udeh_evaluation', ['id']);
+            $table->add_key('audehsectionidfk', XMLDB_KEY_FOREIGN, ['audehsectionid'], 'udeh_section', ['id']);
+            $dbman->create_table($table);
+        }
+
+
+        $evalsecttable = new xmldb_table('udehauthoring_eval_sect');
+        $timefield = new xmldb_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'audehevaluationid');
+
+        // Conditionally launch add field timemodified.
+        if (!$dbman->field_exists($evalsecttable, $timefield)) {
+            $dbman->add_field($evalsecttable, $timefield);
+        }
+
+        $DB->execute("UPDATE {udehauthoring_eval_sect} SET timemodified = '{$now}' WHERE 1");
+        $timefield->setDefault(null);
+        $dbman->change_field_default($evalsecttable, $timefield);
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2023050500, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2023051600) {
+        $now = time();
+        if (!$dbman->table_exists('udehauthoring_add_info')) {
+            $table = new xmldb_table('udehauthoring_add_info');
+
+            $table->add_field('id', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+            $table->add_field('audehcourseid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+            $table->add_field('title', XMLDB_TYPE_TEXT, null, null, null);
+            $table->add_field('content', XMLDB_TYPE_TEXT, null, null, null);
+
+            $table->add_key('id', XMLDB_KEY_PRIMARY, array('id'));
+            $table->add_key('audehcourseidfk', XMLDB_KEY_FOREIGN, ['audehcourseid'], 'udehauthoring_course', ['id']);
+            $dbman->create_table($table);
+        }
+
+
+        $addinfotable = new xmldb_table('udehauthoring_add_info');
+        $timefield = new xmldb_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'content');
+
+        // Conditionally launch add field timemodified.
+        if (!$dbman->field_exists($addinfotable, $timefield)) {
+            $dbman->add_field($addinfotable, $timefield);
+        }
+
+        $DB->execute("UPDATE {udehauthoring_add_info} SET timemodified = '{$now}' WHERE 1");
+        $timefield->setDefault(null);
+        $dbman->change_field_default($addinfotable, $timefield);
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2023051600, 'format', 'udehauthoring');
+    }
+
+    if($oldversion < 2023081400) {
+        $now = time();
+        if (!$dbman->table_exists('udehauthoring_title')) {
+            $table = new xmldb_table('udehauthoring_title');
+
+            $table->add_field('id', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+            $table->add_field('audehcourseid', XMLDB_TYPE_INTEGER, 10, null, XMLDB_NOTNULL);
+            $table->add_field('module', XMLDB_TYPE_TEXT, null, null, null);
+            $table->add_field('question', XMLDB_TYPE_TEXT, null, null, null);
+            $table->add_field('question_explore', XMLDB_TYPE_TEXT, null, null, null);
+            $table->add_field('question_hide', XMLDB_TYPE_TEXT, null, null, null);
+            $table->add_field('question_sub', XMLDB_TYPE_TEXT, null, null, null);
+
+            $table->add_key('id', XMLDB_KEY_PRIMARY, array('id'));
+            $table->add_key('audehcourseidfk', XMLDB_KEY_FOREIGN, ['audehcourseid'], 'udehauthoring_course', ['id']);
+            $dbman->create_table($table);
+        }
+
+
+        $titletable = new xmldb_table('udehauthoring_title');
+        $timefield = new xmldb_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'question_sub');
+
+        // Conditionally launch add field timemodified.
+        if (!$dbman->field_exists($titletable, $timefield)) {
+            $dbman->add_field($titletable, $timefield);
+        }
+
+        $DB->execute("UPDATE {udehauthoring_title} SET timemodified = '{$now}' WHERE 1");
+        $timefield->setDefault(null);
+        $dbman->change_field_default($titletable, $timefield);
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2023081400, 'format', 'udehauthoring');
+    }
+
+    if ($oldversion < 2023102003) {
+        $exptable = new xmldb_table('udehauthoring_exploration');
+
+        // Conditionally launch add field timemodified.
+        if ($dbman->field_exists($exptable, 'party')) {
+            $DB->execute("ALTER TABLE {udehauthoring_exploration} CHANGE `party` party int");
+        }
+
+        // Udehauthoring savepoint reached.
+        upgrade_plugin_savepoint(true, 2023102003, 'format', 'udehauthoring');
+    }
+
     return true;
 }

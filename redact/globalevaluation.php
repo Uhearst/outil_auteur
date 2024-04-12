@@ -1,11 +1,11 @@
 <?php
-
-
 use format_udehauthoring\utils;
 
 require_once('../../../../config.php');
 
 global $DB, $OUTPUT, $PAGE, $ME;
+
+echo '<!doctype html>';
 
 $PAGE->requires->css('/course/format/udehauthoring/authoring_tool.css');
 
@@ -15,14 +15,13 @@ $context = context_course::instance($course->id, MUST_EXIST);
 $courseplan = \format_udehauthoring\model\course_plan::instance_by_courseid($courseid, $context);
 $gloablevaluationplans = \format_udehauthoring\model\evaluation_plan::instance_all_global_by_course_plan_id($courseplan->id);
 
-
 require_login($course);
 require_capability('format/udehauthoring:redact', $context);
 
 $isfrontpage = ($course->id == SITEID);
 
 if ($isfrontpage) {
-    print_error('errorcantredactfrontpage', 'format_udehauthoring');
+    throw new \moodle_exception('errorcantredactfrontpage', 'format_udehauthoring');
     exit;
 }
 
@@ -31,7 +30,6 @@ $PAGE->set_url('/course/format/udehauthoring/redact/globalevaluation.php', ['cou
 $PAGE->set_title("$course->shortname: " . get_string('redactglobalevaluationshort', 'format_udehauthoring'));
 $PAGE->set_heading($course->fullname);
 
-$filemanageropts = array('subdirs' => 0, 'maxbytes' => '0', 'maxfiles' => 1, 'context' => $context);
 $form = new \format_udehauthoring\form\redact_global_evaluation(null, array(
     'section' => $gloablevaluationplans,
     'globalevaluation_count' => $gloablevaluationplans ? count($gloablevaluationplans) : 0,
@@ -88,19 +86,8 @@ $PAGE->requires->js_call_amd('format_udehauthoring/notificationHelper', 'initNot
 echo \format_udehauthoring\utils::breadCrumb($courseplan);
 
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavigation', 'init');
-
 echo \format_udehauthoring\utils::mainMenu($courseplan, substr($ME, strrpos($ME, '/') + 1));
 
-$previewurl = utils::getPreviewUrl($course->id, null, null, true);
-echo \format_udehauthoring\utils::navBar($courseplan->title, $courseplan->courseid, $previewurl);
-$PAGE->requires->js_call_amd('format_udehauthoring/mainNavBar', 'initNavBar');
-
-echo \format_udehauthoring\utils::mainProgress($courseplan);
-$PAGE->requires->js_call_amd('format_udehauthoring/mainProgress', 'init');
-$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'exportCourse', array($courseplan->courseid));
-$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'publishCoursePlan', array(array($courseplan->id, $courseplan->courseid)));
-
-$form->display();
 $associatedModules = [];
 
 $toolList = [];
@@ -113,7 +100,15 @@ if ($teachingobjs !== []) {
             foreach($teachingobj->learningobjectives as $innerkey => $learningobj) {
                     if(in_array($learningobj->id, array_column($eval->learningobjectiveids, 'audehlearningobjectiveid'))) {
                         $learningobjs[] =
-                            '<span class="mr-2">' . ($key + 1) . '.' . ($innerkey + 1) . ' - ' .'</span>' . $learningobj->learningobjective;
+                            '<span class="mr-2">' . ($key + 1) . '.' . ($innerkey + 1) . ' - ' .'</span>' .
+                            file_rewrite_pluginfile_urls(
+                                $learningobj->learningobjective,
+                                'pluginfile.php',
+                                $context->id,
+                                'format_udehauthoring',
+                                'course_learningobjective_' . $learningobj->id,
+                                0
+                            );
                         $counter = $counter + 1;
                 }
             }
@@ -134,12 +129,31 @@ if ($teachingobjs !== []) {
     }
 }
 
+echo \format_udehauthoring\titlesUtils::buildTitlesModal($courseplan->id);
+echo \format_udehauthoring\modalUtils::buildWarningModal();
 
+$formattedInput = \format_udehauthoring\utils::formatGlobalEvalDataForJs($gloablevaluationplans, $toolList, $context);
 
-$formattedInput = \format_udehauthoring\utils::formatGlobalEvalDataForJs($gloablevaluationplans, $toolList);
-
-$PAGE->requires->js_call_amd('format_udehauthoring/globalEvaluationHelper', 'initGlobalEvaluations',
+$PAGE->requires->js_call_amd(
+    'format_udehauthoring/globalEvaluationHelper',
+    'initGlobalEvaluations',
     array(json_encode($formattedInput)));
+
+$previewurl = utils::getPreviewUrl($course->id, null, null, true);
+echo \format_udehauthoring\utils::navBar($courseplan->courseid, $previewurl);
+$PAGE->requires->js_call_amd('format_udehauthoring/mainNavBar', 'initNavBar');
+
+echo \format_udehauthoring\utils::mainProgress($courseplan);
+$PAGE->requires->js_call_amd('format_udehauthoring/mainProgress', 'init');
+
+$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'exportCourse', array($courseplan->courseid));
+$PAGE->requires->js_call_amd(
+    'format_udehauthoring/helper',
+    'publishCoursePlan',
+    array(array($courseplan->id, $courseplan->courseid))
+);
+$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'initSaveWarningModal');
+$form->display();
 
 echo \html_writer::end_tag('div');
 

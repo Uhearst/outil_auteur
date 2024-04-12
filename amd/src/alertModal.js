@@ -1,12 +1,14 @@
+import {get_string as getString} from 'core/str';
+
 let currentIndex = null;
 let currentName = null;
 
 /**
  *
  */
-export function handleModal() {
+export async function handleModal() {
 
-    buildModal();
+    await buildModal();
     toggleModal();
     deleteToolFromModal();
 }
@@ -14,7 +16,7 @@ export function handleModal() {
 /**
  *
  */
-function buildModal() {
+async function buildModal() {
     let modalContainer = document.createElement('div');
     let modalDialog = document.createElement('div');
     let modalContent = document.createElement('div');
@@ -42,7 +44,7 @@ function buildModal() {
 
     modalTitle.setAttribute('class', 'modal-title');
     modalTitle.setAttribute('id', 'alertModalLabel');
-    modalTitle.innerHTML = 'Supression d\'élément';
+    modalTitle.innerHTML = await getString('alertmodaltitle', 'format_udehauthoring');
 
     buttonCloseHeader.setAttribute('type', 'button');
     buttonCloseHeader.setAttribute('class', 'close');
@@ -51,19 +53,18 @@ function buildModal() {
     buttonCloseHeader.innerHTML = '<span aria-hidden="true">&times;</span>';
 
     modalBody.setAttribute('class', 'modal-body');
-    modalBody.innerHTML = 'Êtes-vous sûr ?';
 
     modalFooter.setAttribute('class', 'modal-footer');
 
     buttonClose.setAttribute('type', 'button');
     buttonClose.setAttribute('class', 'btn btn-secondary');
     buttonClose.setAttribute('data-dismiss', 'modal');
-    buttonClose.innerHTML = 'Annuler';
+    buttonClose.innerHTML = await getString('cancel');
 
     buttonSave.setAttribute('type', 'button');
     buttonSave.setAttribute('class', 'btn btn-primary');
     buttonSave.setAttribute('id', 'btn_delete_tool');
-    buttonSave.innerHTML = 'Supprimer';
+    buttonSave.innerHTML = await getString('delete');
 
     modalFooter.appendChild(buttonClose);
     modalFooter.appendChild(buttonSave);
@@ -92,9 +93,8 @@ function buildModal() {
 function toggleModal() {
     let buttons = document.querySelectorAll('[name*="[delete_tool]"]');
     buttons.forEach(button => {
-        button.addEventListener('click', e => {
+        button.addEventListener('click', async e => {
             e.stopImmediatePropagation();
-            window.$('#alertModal').modal('toggle');
             if (location.href.includes('subquestion') || location.href.includes('globalevaluation')) {
                 currentIndex = button.name.slice(button.name.indexOf('[') + 1,
                     button.name.indexOf(']'));
@@ -108,9 +108,9 @@ function toggleModal() {
                     currentName = document.querySelector('[id = "evaluation_tool_name_' + currentIndex + '"]').innerHTML;
                 }
             }
-            let modalBody = document.querySelector('[class = "modal-body"]');
-            modalBody.innerHTML = 'Êtes-vous sûr de vouloir supprimer l\'outil ' + currentName + '?';
-
+            let modalBody = document.querySelector('#alertModal').querySelector('.modal-body');
+            modalBody.innerHTML = await getString('alertmodalbody', 'format_udehauthoring', currentName);
+            window.$('#alertModal').modal('toggle');
         });
     });
 }

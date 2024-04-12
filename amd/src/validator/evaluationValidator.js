@@ -1,18 +1,19 @@
 import {validateIsEmbed} from "./validatorUtils";
 import {addNotification} from "../notificationHelper";
+import {get_string as getString} from 'core/str';
 /**
  *
  */
 export function validateEvaluationForm() {
-    document.getElementById('udeh-form').addEventListener("submit", function(e) {
-        e.preventDefault();
-
-        let validObj = validateObjectives();
-        let validModules = validateModules();
-        if (!validObj || !validModules) {
-            return;
+    document.getElementById('udeh-form').addEventListener("submit", async function(e) {
+        if (window.location.href.includes('displayable-form-evaluations-container')) {
+            e.preventDefault();
+            let isValidObjectives = await validateObjectives();
+            let isValidModules = await validateModules();
+            if (isValidObjectives && isValidModules) {
+                window.$('#udeh-form').submit();
+            }
         }
-        window.$('#udeh-form').submit();
     });
 }
 
@@ -34,7 +35,6 @@ export function validateEvaluationDataForm(length = null) {
         } else {
             validateIsEmbed();
         }
-
         window.$('#udeh-form').submit();
     });
 }
@@ -42,7 +42,7 @@ export function validateEvaluationDataForm(length = null) {
 /**
  *
  */
-function validateObjectives() {
+async function validateObjectives() {
     let isValid = true;
     let evaluations = document.querySelectorAll('[id^="row_course_evaluation_container_"]');
 
@@ -62,22 +62,22 @@ function validateObjectives() {
     });
 
     if (notCheckedEvaluationsId.length > 0) {
-        notCheckedEvaluationsId.forEach(notCheckedEvaluationId => {
+        for (const notCheckedEvaluationId of notCheckedEvaluationsId) {
             let errorMsg = document.getElementById('error_msg_obj_' + notCheckedEvaluationId);
             if (errorMsg === null) {
                 let span = document.createElement('span');
                 span.style.color = 'red';
                 span.id = 'error_msg_obj_' + notCheckedEvaluationId;
                 span.style.margin = '0 0 0 1rem';
-                span.innerHTML = '* Un objectif d\'apprentissage est requis';
+                span.innerHTML = await getString('evaluationsaveerrorobjmsg', 'format_udehauthoring');
                 document.getElementById('course_evaluation_content_' + notCheckedEvaluationId).insertBefore(
                     span, document.getElementById('fitem_id_evaluation_learning_objectives_' + notCheckedEvaluationId));
             }
-        });
+        }
         isValid = false;
     }
     if (!isValid) {
-        addNotification('Vous devez ajouter au moins un objectif d\'apprentissage par évaluation', 2);
+        addNotification(await getString('notificationerroroneobjective', 'format_udehauthoring'), 2);
     } else {
         let errorMsgs = document.querySelectorAll('[id^="error_msg_obj_"]');
         errorMsgs.forEach(errorMsg => {
@@ -90,36 +90,37 @@ function validateObjectives() {
 /**
  *
  */
-function validateModules() {
+async function validateModules() {
     let isValid = true;
     let selectedValues = [];
     let moduleContainers = document.querySelectorAll('[id^="fitem_id_evaluation_module_"]');
 
     moduleContainers.forEach(function(moduleContainer) {
-        let select = moduleContainer.querySelector('.custom-select');
-        selectedValues.push((select.value));
+        let select = moduleContainer.querySelector('.form-check-input');
+        if (select.checked) {
+            selectedValues.push(parseInt(select.name.substring(select.name.indexOf('[') + 1, select.name.indexOf(']'))));
+        }
     });
-
-    selectedValues.forEach(function(selectedValue, index) {
+    for (const selectedValue of selectedValues) {
+        const index = selectedValues.indexOf(selectedValue);
         let results = selectedValues.filter(val => val === selectedValue);
-        if (results.length > 1 && selectedValue !== "0") {
+        if (results.length > 1 && selectedValue !== 0) {
             let errorMsg = document.getElementById('error_msg_module_' + index);
             if (errorMsg === null) {
                 let span = document.createElement('span');
                 span.style.color = 'red';
                 span.id = 'error_msg_module_' + index;
                 span.style.margin = '0 0 0.5rem 1rem';
-                span.innerHTML = '* Le module doit être unique à chaque évaluation';
+                span.innerHTML = await getString('notificationerroruniquemodule', 'format_udehauthoring');
                 document.getElementById('course_evaluation_content_' + index).insertBefore(
                     span, document.getElementById('fitem_id_evaluation_module_' + index));
             }
             isValid = false;
         }
-    });
-    if(!isValid) {
-        addNotification('Le module doit être unique à chaque évaluation', 2);
     }
-    else {
+    if (!isValid) {
+        addNotification(await getString('notificationerroruniquemodule', 'format_udehauthoring'), 2);
+    } else {
         let errorMsgs = document.querySelectorAll('[id^="error_msg_module_"]');
         errorMsgs.forEach(errorMsg => {
             errorMsg.remove();

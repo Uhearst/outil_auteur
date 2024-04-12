@@ -6,7 +6,7 @@ require_once($CFG->dirroot.'/lib/editor/atto/lib.php');
 global $DB;
 
 if (isset($_POST)) {
-    $id = $_POST["courseId"];
+    $id = filter_input(INPUT_POST, 'courseId', FILTER_SANITIZE_NUMBER_INT); // $_POST["courseId"];
     $context = context_course::instance($id, MUST_EXIST);
     $record = $DB->get_record('udehauthoring_course', ['courseid' => $id], 'id');
     $learning_plans = \format_udehauthoring\model\learningobjective_plan::instance_all_by_audeh_course_id($record->id, $context);

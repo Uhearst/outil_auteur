@@ -24,23 +24,32 @@ virtuel (SAV)](https://vls.ecampusontario.ca/fr/)
 
 UdeH Auteur est sous licence creative commons. Lire ci-dessous les termes qui encadre son utilisation
 
-Créateur : ©[Uhearst](http://www.uhearst.ca/), 2022 en partenariat avec la [SOFAD](https://sofad.qc.ca/)et [ELEARNING.STUDIO](https://elearning.studio/)
+Créateur : ©[Uhearst](http://www.uhearst.ca/), 2023 en partenariat avec la [SOFAD](https://sofad.qc.ca/).
 
 ## Cycle de vie
 
-Actuellement en phase **Stable**, version: 1.0 Stable (Build - 2022062000).
+Actuellement en phase **Stable**, version: 2.0 Stable (Build - 2024041000).
 
 ---
+
 Versions Précédentes:
-* 0.2 Alpha (Build - 2022042201) - Release Alpha
-* 0.1 Alpha (Build - 2022022800) - Release initial
+
+- 1.2.5 Stable (Build - 2023081405)
+- 1.2 Stable (Build - 2023061900)
+- 1.1.5 Stable (Build - 2023051600)
+- 1.1 Stable (Build - 2023041100)
+- 1.0.1 Stable (Build - 2022081700)
+- 1.0 Stable (Build - 2022062000)
+- 0.2 Alpha (Build - 2022042201) - Release Alpha
+- 0.1 Alpha (Build - 2022022800) - Release initial
+
 ---
 
 ## Installation
 
-Version Moodle minimale : 3.11\
+Version Moodle minimale : 4.1\
 Version MySQL minimale : 5.7\
-Version PHP minimale : 7.3
+Version PHP minimale : 7.4
 
 `format_udehauthoring` est un plugin Moodle de type _Format de cours_.
 Suivre les directives d’installation habituelles pour un plugin Moodle : https://docs.moodle.org/en/Installing_plugins#Installing_a_plugin
@@ -52,7 +61,7 @@ format for noncommercial purposes only, and only so long as attribution is given
 build upon the material, you must license the modified material under identical terms.
 
 **CC BY-NC-SA** includes the following elements:
-* BY  – Credit must be given to the creator
-* NC  – Only noncommercial uses of the work are permitted
-* SA  – Adaptations must be shared under the same terms
 
+- BY – Credit must be given to the creator
+- NC – Only noncommercial uses of the work are permitted
+- SA – Adaptations must be shared under the same terms

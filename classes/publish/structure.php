@@ -56,8 +56,8 @@ class structure
             $sections[] = 'evaluations';
         }
 
-        if (!empty($course_plan->annex)) {
-            $sections[] = 'annex';
+        if (!empty($course_plan->additionalinformation)) {
+            $sections[] = 'additionalinformation';
         }
 
         return $sections;
@@ -130,6 +130,15 @@ class structure
     private function publish_course_sections() {
         global $DB;
 
+        if ($this->target instanceof target\official) {
+            // Publish module visibility
+            $context = \context_course::instance($this->course_plan->courseid, MUST_EXIST);
+            foreach($this->course_plan->sections as $key => $section) {
+                $section->isvisible = $section->isvisiblepreview;
+                $section->updateVisibility($section->id, $section->isvisiblepreview);
+            }
+        }
+
         $sections_offset = $this->target->get_sections_offset($this->course_plan->courseid);
         $existing_sections = $this->target->get_existing_sections($this->course_plan->courseid);
         $nb_existing_sections = count($existing_sections);
@@ -185,10 +194,7 @@ class structure
 
         $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0);
         if (!isset($cms[$cmidnumber])) {
-            $modinfo = $this->add_page($sectionposition, $cmidnumber);
-            $cmid = $modinfo->coursemodule;
-        } else {
-            $cmid = $cms[$cmidnumber]->id;
+            $this->add_page($sectionposition, $cmidnumber);
         }
 
         $existing_cmidnumbers = $this->target->filter_cmidnumbers(array_keys($cms), $this->course_plan->courseid, 0, '([1-9]|\d{,2})');
@@ -196,11 +202,9 @@ class structure
         for ($index = 0; $index < count($syllabus_sections); ++$index) {
             $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, $index);
             if (!isset($cms[$cmidnumber])) {
-                $modinfo = $this->add_page($sectionposition, $cmidnumber);
-                $cmid = $modinfo->coursemodule;
+                $this->add_page($sectionposition, $cmidnumber);
             } else {
                 $existing_cmidnumbers = array_diff($existing_cmidnumbers, [$cmidnumber]);
-                $cmid = $cms[$cmidnumber]->id;
             }
         }
 
@@ -218,11 +222,11 @@ class structure
             $sectionindex = $ii + 1;
             $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $sectionindex);
             if (!isset($cms[$cmidnumber])) {
-                $modinfo = $this->add_page($sections[$sectionindex]->section, $cmidnumber);
-                $cmid = $modinfo->coursemodule;
+                if ($section->title !== '' && $section->title !== null) {
+                    $this->add_page($sections[$sectionindex]->section, $cmidnumber);
+                }
             } else {
                 $existing_cmidnumbers = array_diff($existing_cmidnumbers, [$cmidnumber]);
-                $cmid = $cms[$cmidnumber]->id;
                 if ($cms[$cmidnumber]->section != $sections[$sectionindex]->id) {
                     $modinfo = get_fast_modinfo($this->course, -1);
                     $section = $modinfo->get_section_info($sections[$sectionindex]->section);
@@ -244,10 +248,8 @@ class structure
         // evaluations page
         $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, false, false, true);
         if (!isset($cms[$cmidnumber])) {
-            $modinfo = $this->add_page($sections[$sectionindex]->section, $cmidnumber);
-            $cmid = $modinfo->coursemodule;
+            $this->add_page($sections[$sectionindex]->section, $cmidnumber);
         } else {
-            $cmid = $cms[$cmidnumber]->id;
             if ($cms[$cmidnumber]->section != $sections[$sectionindex]->id) {
                 $modinfo = get_fast_modinfo($this->course, -1);
                 $section = $modinfo->get_section_info($sections[$sectionindex]->section);
@@ -261,11 +263,9 @@ class structure
         foreach ($this->course_plan->evaluations as $ii => $evaluation) {
             $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $ii, false, true);
             if (!isset($cms[$cmidnumber])) {
-                $modinfo = $this->add_page($sections[$sectionindex]->section, $cmidnumber);
-                $cmid = $modinfo->coursemodule;
+                $this->add_page($sections[$sectionindex]->section, $cmidnumber);
             } else {
                 $existing_cmidnumbers = array_diff($existing_cmidnumbers, [$cmidnumber]);
-                $cmid = $cms[$cmidnumber]->id;
                 if ($cms[$cmidnumber]->section != $sections[$sectionindex]->id) {
                     $modinfo = get_fast_modinfo($this->course, -1);
                     $section = $modinfo->get_section_info($sections[$sectionindex]->section);
@@ -288,11 +288,9 @@ class structure
                 $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $sectionindex, $jj);
 
                 if (!isset($cms[$cmidnumber])) {
-                    $modinfo = $this->add_page($sections[$sectionindex]->section, $cmidnumber);
-                    $cmid = $modinfo->coursemodule;
+                    $this->add_page($sections[$sectionindex]->section, $cmidnumber);
                 } else {
                     $existing_cmidnumbers = array_diff($existing_cmidnumbers, [$cmidnumber]);
-                    $cmid = $cms[$cmidnumber]->id;
                 }
             }
         }

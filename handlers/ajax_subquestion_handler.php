@@ -7,8 +7,8 @@ require_once($CFG->dirroot.'/lib/editor/atto/lib.php');
 global $DB;
 
 if (isset($_POST)) {
-    $id = $_POST["sectionId"];
-    $courseid = $_POST["courseId"];
+    $id = filter_input(INPUT_POST, 'sectionId', FILTER_SANITIZE_NUMBER_INT); // $_POST["sectionId"];
+    $courseid = filter_input(INPUT_POST, 'courseId', FILTER_SANITIZE_NUMBER_INT); // $_POST["courseId"];
     $index = null;
     $context = context_course::instance($courseid, MUST_EXIST);
     $record = \format_udehauthoring\model\section_plan::instance_by_id($id, $context);

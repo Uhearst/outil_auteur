@@ -20,13 +20,31 @@ class redact_subquestion extends \moodleform
 
         $mform = $this->_form;
 
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = array(
+            'subdirs' => 1,
+            'maxbytes' => 100000000,
+            'maxfiles' => 1,
+            'changeformat' => 0,
+            'context' => $context,
+            'noclean' => 1,
+            'trusttext' => 1
+        );
+
         $mform->addElement('hidden', 'id');
         $mform->setType('id', PARAM_INT);
 
         $mform->addElement('hidden', 'audeh_section_id');
         $mform->setType('audeh_section_id', PARAM_INT);
 
-        $mform->addElement('html', '<h1 class="ml-3 course-title">' . $this->_customdata['coursetitle'] . '</h1>');
+        $mform->addElement('html', '<h1 class="course-title">' . $this->_customdata['coursetitle'] . '</h1>');
 
         if(get_string_manager()->string_exists('instructionssubquestion', 'format_udehauthoring') && get_string('instructionssubquestion', 'format_udehauthoring')) {
             $mform->addElement('html', '<div class="mt-3">');
@@ -36,20 +54,27 @@ class redact_subquestion extends \moodleform
         }
 
         $mform->addElement('html', '
-        <div class="accordion-container card ml-3">
+        <div class="accordion-container card">
         <div id="subquestion_preview_header" class="card-header accordion-header">
           <a data-toggle="collapse" href="#collapseSubQuestionPreview" role="button" aria-expanded="false" aria-controls="collapseSubQuestionPreview" class="collapsed">
-            Trame - ' . strip_tags($this->_customdata['subquestion']->title) . '
+            ' . get_string("subquestion", "format_udehauthoring") . ' - ' . strip_tags($this->_customdata['subquestion']->title) . '
           </a>
         </div>
         <div class="collapse" id="collapseSubQuestionPreview">
           <div class="card-body accordion-content">
             <div id="module_question" class="mt-2 mb-2">
                 <strong id="module_question_header">
-                    Question du Module
+                    ' . get_string("sectionquestion", "format_udehauthoring") . '
                 </strong>
                 <div id="module_question_content">' .
-                    $this->_customdata['section']->question
+                    file_rewrite_pluginfile_urls(
+                        $this->_customdata['section']->question,
+                        'pluginfile.php',
+                        $context->id,
+                        'format_udehauthoring',
+                        'course_section_question_' . $this->_customdata['section']->id,
+                        0
+                    )
             . '</div>
             </div> 
           </div>
@@ -67,7 +92,7 @@ class redact_subquestion extends \moodleform
         $mform->addElement('hidden', 'subquestion_title');
         $mform->setType('subquestion_title', PARAM_TEXT);
 
-        $mform->addElement('editor', 'subquestion_enonce', get_string('subquestionenonce', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $mform->addElement('editor', 'subquestion_enonce', get_string('subquestionenonce', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('subquestion_enonce', PARAM_RAW);
 
         $mform->addElement('filemanager', 'subquestion_vignette', get_string('subquestionvignette', 'format_udehauthoring'), null,
@@ -85,11 +110,11 @@ class redact_subquestion extends \moodleform
         $repeatarrayexplorations[] = $mform->createElement('html', '<div class="col-11 accordion-container card">');
         $repeatarrayexplorations[] = $mform->createElement('html', '<div class="accordion-header card-header">');
         $repeatarrayexplorations[] = $mform->createElement('html', '
-          <a data-toggle="collapse" href="#collapseSubQuestionExploration" role="button" aria-expanded="true" aria-controls="collapseSubQuestionExploration">
+          <a data-toggle="collapse" href="#collapseSubQuestionExploration" role="button" aria-expanded="false" aria-controls="collapseSubQuestionExploration" class="collapsed">
             Exploration 1.1.1 - 
           </a>');
         $repeatarrayexplorations[] = $mform->createElement('html', '</div>');
-        $repeatarrayexplorations[] = $mform->createElement('html', '<div class="collapse show" id="collapseSubQuestionExploration" data-parent="#subquestion-explorations-container">');
+        $repeatarrayexplorations[] = $mform->createElement('html', '<div class="collapse" id="collapseSubQuestionExploration" data-parent="#subquestion-explorations-container">');
         $repeatarrayexplorations[] = $mform->createElement('html', '<div class="card-body accordion-content">');
 
         $repeatarrayexplorations[] = $mform->createElement('hidden', 'exploration_title');
@@ -99,7 +124,7 @@ class redact_subquestion extends \moodleform
 
         $repeatarrayexplorations[] = $mform->createElement('select', 'exploration_activity_type', get_string('explorationactivitytype', 'format_udehauthoring'), exploration_plan::activity_type_list());
 
-        $repeatarrayexplorations[] = $mform->createElement('editor', 'exploration_activity_free_type', get_string('explorationactivityfreetype', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $repeatarrayexplorations[] = $mform->createElement('editor', 'exploration_activity_free_type', get_string('explorationactivityfreetype', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
 
         $temporality = ['Synchrone', 'Asynchrone'];
         $repeatarrayexplorations[] = $mform->createElement('select', 'exploration_temporality', get_string('explorationtemporality', 'format_udehauthoring'), $temporality);
@@ -109,10 +134,10 @@ class redact_subquestion extends \moodleform
         $location = exploration_plan::locations_list();
         $repeatarrayexplorations[] = $mform->createElement('select', 'exploration_location', get_string('explorationlocation', 'format_udehauthoring'), $location);
 
-        $grouping = exploration_plan::grouping_list();
-        $repeatarrayexplorations[] = $mform->createElement('select', 'exploration_grouping', get_string('explorationgrouping', 'format_udehauthoring'), $grouping);
+        $party = exploration_plan::party_list();
+        $repeatarrayexplorations[] = $mform->createElement('select', 'exploration_party', get_string('explorationparty', 'format_udehauthoring'), $party);
 
-        $repeatarrayexplorations[] = $mform->createElement('editor', 'exploration_instructions', get_string('explorationinstructions', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $repeatarrayexplorations[] = $mform->createElement('editor', 'exploration_instructions', get_string('explorationinstructions', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
 
         $radioarray=array();
         $radioarray[] = $mform->createElement('radio', 'exploration_marked', '', get_string('yes'), 1);
@@ -155,8 +180,8 @@ class redact_subquestion extends \moodleform
         $mform->setType('exploration_length', PARAM_RAW);
         $mform->setType('exploration_location', PARAM_INT);
         $mform->setDefault('exploration_location', 0);
-        $mform->setType('exploration_grouping', PARAM_INT);
-        $mform->setDefault('exploration_grouping', 0);
+        $mform->setType('exploration_party', PARAM_INT);
+        $mform->setDefault('exploration_party', 0);
         $mform->setType('exploration_instructions', PARAM_RAW);
         $mform->setType('exploration_marked', PARAM_INT);
         $mform->setType('exploration_evaluation_type', PARAM_INT);
@@ -169,7 +194,7 @@ class redact_subquestion extends \moodleform
             ['explorationtemporality', 'exploration_temporality'],
             ['explorationlength', 'exploration_length'],
             ['explorationlocation', 'exploration_location'],
-            ['explorationgrouping', 'exploration_grouping'],
+            ['explorationparty', 'exploration_party'],
             ['explorationinstructions', 'exploration_instructions'],
             ['explorationevaluationtype', 'exploration_evaluation_type'],
             ['explorationmarked', 'marked_group'],
@@ -186,12 +211,14 @@ class redact_subquestion extends \moodleform
         $mform->addElement('html', '<span class="add-text">Exploration </span>');
         $mform->addElement('html', '</div>');
 
-        $mform->addElement('html', '<div class="col-1 add_action_button">');
-        $mform->addElement('html', '</div>');
+        $mform->addElement('html', '<div class="col-1"><div class="form-group row  fitem femptylabel" style="display: flex;justify-content: center;margin-top: 0.2rem;">
+        <div class="col-lg-9 col-md-8 form-inline align-items-center felement p-0 add_action_button" data-fieldtype="submit" style="justify-content: unset;position: relative;left: -3px;">');
+        $mform->addElement('html', '</div></div></div>');
 
         $mform->addElement('html', '</div>');
 
-        $mform->addElement('html', '<div id="subquestion-resources-container"><h2 class="ml-3 mb-3 page-title">' . get_string('titleresources', 'format_udehauthoring') . '</h2>');
+        $mform->addElement('html', '<div id="subquestion-resources-container"><h2 class="ml-3 mb-3 page-title">' . get_string('titleresources', 'format_udehauthoring') . '</h2>
+            <i class="legend">' . get_string('mandatoryfield', 'format_udehauthoring') . '</i>');
 
         $repeatarrayresources = [];
         $repeatarrayresources[] = $mform->createElement('html', '<div class="row row-container row_subquestion_resource_container mb-3" id="row_subquestion_resource_container_">');
@@ -199,13 +226,13 @@ class redact_subquestion extends \moodleform
         $repeatarrayresources[] = $mform->createElement('html', '<div class="col-11 accordion-container card">');
         $repeatarrayresources[] = $mform->createElement('html', '<div class="accordion-header card-header">');
         $repeatarrayresources[] = $mform->createElement('html', '
-          <a data-toggle="collapse" href="#collapseSubQuestionResource" role="button" aria-expanded="true" aria-controls="collapseSubQuestionResource">
-            Suggestion de ressource 1
+          <a data-toggle="collapse" href="#collapseSubQuestionResource" role="button" aria-expanded="false" aria-controls="collapseSubQuestionResource" class="collapsed">
+            ' . get_string('resource', 'format_udehauthoring') . ' 1
           </a>');
         $repeatarrayresources[] = $mform->createElement('html', '</div>');
-        $repeatarrayresources[] = $mform->createElement('html', '<div class="collapse show" id="collapseSubQuestionResource" data-parent="#subquestion-resources-container">');
+        $repeatarrayresources[] = $mform->createElement('html', '<div class="collapse" id="collapseSubQuestionResource" data-parent="#subquestion-resources-container">');
         $repeatarrayresources[] = $mform->createElement('html', '<div class="card-body subquestion_resource_content">');
-        $repeatarrayresources[] = $mform->createElement('editor', 'resource_title', get_string('resourcetitle', 'format_udehauthoring'), ['class'=>'title-editor', 'rows'=>'4']);
+        $repeatarrayresources[] = $mform->createElement('editor', 'resource_title', get_string('resourcetitle', 'format_udehauthoring') . ' <i class="star">*</i> ', ['class'=>'title-editor', 'rows'=>'4'], $editoroptions);
         $repeatarrayresources[] = $mform->createElement('hidden', 'resource_id', 0);
         $repeatarrayresources[] = $mform->createElement('text', 'resource_external_link', get_string('resourceexternallink', 'format_udehauthoring'));
         $repeatarrayresources[] = $mform->createElement('filemanager', 'resource_vignette', get_string('resourcevignette', 'format_udehauthoring'), null,
@@ -242,8 +269,9 @@ class redact_subquestion extends \moodleform
         $mform->addElement('html', '<span class="add-text">Ressource</span>');
         $mform->addElement('html', '</div>');
 
-        $mform->addElement('html', '<div class="col-1 add_action_button"></div>');
-        $mform->addElement('html', '</div>');
+        $mform->addElement('html', '<div class="col-1"><div class="form-group row  fitem femptylabel" style="display: flex;justify-content: center;margin-top: 0.2rem;">
+        <div class="col-lg-9 col-md-8 form-inline align-items-center felement p-0 add_action_button" data-fieldtype="submit" style="justify-content: unset;position: relative;left: -3px;">');
+        $mform->addElement('html', '</div></div></div>');
     }
 
     private function handleHelpButtonsArray($elements) {

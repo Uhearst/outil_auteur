@@ -7,9 +7,9 @@ require_once($CFG->dirroot.'/course/format/udehauthoring/classes/model/evaluatio
 require_once($CFG->dirroot.'/course/lib.php');
 
 if (isset($_POST)) {
-    $cmid = $_POST["cmid"];
-    $id = $_POST["id"];
-    $type = $_POST["type"];
+    $cmid = filter_input(INPUT_POST, 'cmid', FILTER_SANITIZE_NUMBER_INT); //$_POST["cmid"];
+    $id = filter_input(INPUT_POST, 'id', FILTER_SANITIZE_NUMBER_INT); //$_POST["id"];
+    $type = filter_input(INPUT_POST, 'type', FILTER_SANITIZE_NUMBER_INT); //$_POST["type"];
     // find course id
     list($course, $cm) = get_course_and_cm_from_cmid($cmid);
     course_delete_module($cmid, true);

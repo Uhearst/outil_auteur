@@ -14,7 +14,9 @@ class subquestion_plan
     public $id = null;
     public $audehsectionid = null;
     public $title = null;
+    public $titleformat = null;
     public $enonce = null;
+    public $enonceformat = null;
     public $vignette = null;
     public $explorations = null;
     public $resources = null;
@@ -27,7 +29,7 @@ class subquestion_plan
      * @return array
      * @throws \dml_exception
      */
-    public static function instance_all_by_section_plan_id($audehsectionid) {
+    public static function instance_all_by_section_plan_id($audehsectionid, $context = null) {
         global $DB;
 
         $records = $DB->get_records('udehauthoring_sub_question', ['audehsectionid' => $audehsectionid]);
@@ -40,9 +42,28 @@ class subquestion_plan
             $subquestionplan->audehsectionid = $record->audehsectionid;
             $subquestionplan->title = $record->title;
             $subquestionplan->enonce = $record->enonce;
-            $subquestionplan->explorations = exploration_plan::instance_all_by_subquestion_plan_id($subquestionplan->id);
-            $subquestionplan->resources = resource_plan::instance_all_by_subquestion_plan_id($subquestionplan->id);
+            $subquestionplan->explorations =
+                exploration_plan::instance_all_by_subquestion_plan_id($subquestionplan->id, $context);
+            $subquestionplan->resources =
+                resource_plan::instance_all_by_subquestion_plan_id($subquestionplan->id, $context);
             $subquestionplan->timemodified = $record->timemodified;
+
+            if ($context) {
+                $options = format_udehauthoring_get_editor_options($context);
+                $editors = ['title', 'enonce'];
+                foreach ($editors as $editor) {
+                    $subquestionplan = file_prepare_standard_editor(
+                        $subquestionplan,
+                        $editor,
+                        $options,
+                        $context,
+                        'format_udehauthoring',
+                        'course_subquestion_' . $editor . '_' . $subquestionplan->id,
+                        0
+                    );
+                }
+            }
+
             $subquestionplans[] = $subquestionplan;
         }
 
@@ -60,7 +81,7 @@ class subquestion_plan
         $subquestionplan->id = $data->id;
         $subquestionplan->audehsectionid = $data->audeh_section_id;
         $subquestionplan->title = $data->subquestion_title;
-        $subquestionplan->enonce = $data->subquestion_enonce['text'];
+        $subquestionplan->enonce_editor = $data->subquestion_enonce;
         $subquestionplan->vignette = $data->subquestion_vignette;
 
         $subquestionplan->explorations = [];
@@ -77,16 +98,20 @@ class subquestion_plan
 
                 $explorationplan->title = $ii >= count($data->exploration_title) ? '' : $data->exploration_title[$ii];
                 $explorationplan->toolcmid = $ii >= count($data->exploration_tool_cmid) ? '' : $data->exploration_tool_cmid[$ii];
-                $explorationplan->tooltype = $ii >= count($data->tool_group) ? 0 : $data->tool_group[$ii]['exploration_tool'];
+                if(isset($data->tool_group)) {
+                    $explorationplan->tooltype = $ii >= count($data->tool_group) ? 0 : $data->tool_group[$ii]['exploration_tool'];
+                }
                 $explorationplan->question = $ii >= count($data->exploration_question) ? '' : $data->exploration_question[$ii];
                 $explorationplan->activitytype = $ii >= count($data->exploration_activity_type) ? '' : $data->exploration_activity_type[$ii];
+                $explorationplan->activityfreetype_editor = $data->exploration_activity_free_type[$ii];
                 $explorationplan->activityfreetype = $data->exploration_activity_free_type[$ii]['text'];
                 $explorationplan->temporality = $ii >= count($data->exploration_temporality) ? '' : $data->exploration_temporality[$ii];
                 $explorationplan->location = $ii >= count($data->exploration_location) ? '' : $data->exploration_location[$ii];
-                $explorationplan->grouping = $ii >= count($data->exploration_grouping) ? '' : $data->exploration_grouping[$ii];
+                $explorationplan->party = $ii >= count($data->exploration_party) ? '' : $data->exploration_party[$ii];
                 $explorationplan->ismarked = $data->exploration_marked[$ii];
                 $explorationplan->evaluationtype = $ii >= count($data->exploration_evaluation_type) ? '' : $data->exploration_evaluation_type[$ii];
                 $explorationplan->length = $ii >= count($data->exploration_length) ? '' : $data->exploration_length[$ii];
+                $explorationplan->instructions_editor = $data->exploration_instructions[$ii];
                 $explorationplan->instructions = $data->exploration_instructions[$ii]['text'];
 
                 $subquestionplan->explorations[] = $explorationplan;
@@ -106,7 +131,7 @@ class subquestion_plan
                     $resourceplan->id = $resourceid;
                 }
 
-                $resourceplan->title = $resourcetitle['text'];
+                $resourceplan->title_editor = $resourcetitle;
                 $resourceplan->vignette = $data->resource_vignette[$ii];
                 $resourceplan->link = $data->resource_external_link[$ii];
 
@@ -138,7 +163,7 @@ class subquestion_plan
             } else if('explorations' === $key) {
                 $subquestionplan->$key = exploration_plan::instance_all_by_subquestion_plan_id($subquestionplan->id);
             }
-            else if($key != 'vignette') {
+            else if($key != 'vignette' && !str_ends_with($key, 'format')) {
                 $subquestionplan->$key = $record->$key;
             }
         }
@@ -169,7 +194,14 @@ class subquestion_plan
             'audeh_section_id' => $this->audehsectionid,
             'subquestion_title' => $this->title,
             'subquestion_enonce' => (object)[
-                'text' => $this->enonce,
+                'text' => file_rewrite_pluginfile_urls(
+                    $this->enonce,
+                    'pluginfile.php',
+                    $context->id,
+                    'format_udehauthoring',
+                    'course_subquestion_enonce_' . $this->id,
+                    0
+                ),
                 'format' => FORMAT_HTML
             ],
             'subquestion_vignette' => $draftvignetteid,
@@ -181,19 +213,33 @@ class subquestion_plan
                 return $exploration->question;
             }, $this->explorations),
             'exploration_activity_type' => array_map(function($exploration) { return $exploration->activitytype; }, $this->explorations),
-            'exploration_activity_free_type' => array_map(function($exploration) {
+            'exploration_activity_free_type' => array_map(function($exploration) use ($context) {
                 return (object)[
-                'text' => $exploration->activityfreetype,
-                'format' => FORMAT_HTML
+                    'text' => file_rewrite_pluginfile_urls(
+                        $exploration->activityfreetype,
+                        'pluginfile.php',
+                        $context->id,
+                        'format_udehauthoring',
+                        'course_exploration_activityfreetype_' . $exploration->id,
+                        0
+                    ),
+                    'format' => FORMAT_HTML
                 ];
             }, $this->explorations),
             'exploration_temporality' => array_map(function($exploration) { return $exploration->temporality; }, $this->explorations),
             'exploration_length' => array_map(function($exploration) { return $exploration->length; }, $this->explorations),
             'exploration_location' => array_map(function($exploration) { return $exploration->location; }, $this->explorations),
-            'exploration_grouping' => array_map(function($exploration) { return $exploration->grouping; }, $this->explorations),
-            'exploration_instructions' => array_map(function($exploration) {
+            'exploration_party' => array_map(function($exploration) { return $exploration->party; }, $this->explorations),
+            'exploration_instructions' => array_map(function($exploration) use ($context) {
                 return (object)[
-                    'text' => $exploration->instructions,
+                    'text' => file_rewrite_pluginfile_urls(
+                        $exploration->instructions,
+                        'pluginfile.php',
+                        $context->id,
+                        'format_udehauthoring',
+                        'course_exploration_instructions_' . $exploration->id,
+                        0
+                    ),
                     'format' => FORMAT_HTML
                 ];
             }, $this->explorations),
@@ -201,9 +247,16 @@ class subquestion_plan
             'exploration_evaluation_type' => array_map(function($exploration) { return $exploration->evaluationtype; }, $this->explorations),
             'exploration_tool_cmid' => array_map(function($exploration) { return $exploration->toolcmid; }, $this->explorations),
             'resource_id' => array_map(function($resource) { return $resource->id; }, $this->resources),
-            'resource_title' => array_map(function($resource) {
+            'resource_title' => array_map(function($resource) use ($context) {
                 return (object)[
-                    'text' => $resource->title,
+                    'text' => file_rewrite_pluginfile_urls(
+                        $resource->title,
+                        'pluginfile.php',
+                        $context->id,
+                        'format_udehauthoring',
+                        'course_resource_title_' . $resource->id,
+                        0
+                    ),
                     'format' => FORMAT_HTML
                 ];
             }, $this->resources),
@@ -226,37 +279,51 @@ class subquestion_plan
         foreach ($this as $key => $value) {
             if ($key != 'vignette' && $key != 'timemodified') {
                 if($fromregularsave) {
-                    if ($key != 'title' && $key != 'timemodified') {
+                    if ($key != 'title' && $key != 'timemodified' && !str_ends_with($key, 'format')) {
                         $record->$key = $value;
                     }
                 } else {
-                    if (($key == 'title' || $key == 'id' || $key == 'audehsectionid') && $key != 'timemodified') {
+                    if (($key == 'title' || $key == 'id' || $key == 'audehsectionid')
+                        && $key != 'timemodified'
+                        && !str_ends_with($key, 'format')) {
                         $record->$key = $value;
                     }
                 }
             }
         }
-        if($fromregularsave) {
-            utils::file_save_draft_area_files($this->vignette, $context->id, 'format_udehauthoring', 'subquestionvignette',
-                $this->id);
-        }
 
-        if (isset($record->id)) {
-            utils::db_update_if_changes('udehauthoring_sub_question', $record);
-        } else {
+
+        if (!isset($record->id)) {
             $record->timemodified = time();
             $this->id = $DB->insert_record('udehauthoring_sub_question', $record);
-            if($this->explorations) {
+            $record->id = $this->id;
+            if ($this->explorations) {
                 foreach ($this->explorations as $exploration) {
                     $exploration->audehsubquestionid = $this->id;
                 }
             }
 
-            if($this->resources) {
+            if ($this->resources) {
                 foreach ($this->resources as $resource) {
                     $resource->audehsubquestionid = $this->id;
                 }
             }
+        }
+
+        if($fromregularsave) {
+            utils::file_save_draft_area_files($this->vignette, $context->id, 'format_udehauthoring', 'subquestionvignette',
+                $this->id);
+        }
+
+        $editors = ['title', 'enonce'];
+        foreach ($editors as $editor) {
+            if (!empty($this->{$editor.'_editor'})) {
+                $record = utils::prepareEditorContent($this, $record, $context, $editor, 'course_subquestion_');
+            }
+        }
+
+        if (isset($record->id)) {
+            utils::db_update_if_changes('udehauthoring_sub_question', $record);
         }
 
         // save exploration
@@ -267,10 +334,11 @@ class subquestion_plan
             if ($this->explorations) {
                 foreach ($this->explorations as $exploration) {
                     $input_explorations_id[$exploration->id] = $exploration->id;
-                    if ($exploration->id && empty($exploration->instructions)) {
-                        $exploration->delete();
+                    if ($exploration->id
+                        && (empty($exploration->instructions) && empty($resource->title_editor['text']))) {
+                        $exploration->delete($context);
                     } else {
-                        $exploration->save();
+                        $exploration->save($context);
                     }
                 }
             }
@@ -278,7 +346,7 @@ class subquestion_plan
             foreach ($exploration_record_ids as $exploration_record_id) {
                 if (!in_array($exploration_record_id->id, $input_explorations_id)) {
                     $explorationplan = \format_udehauthoring\model\exploration_plan::instance_by_id($exploration_record_id->id);
-                    $explorationplan->delete();
+                    $explorationplan->delete($context);
                 }
             }
 
@@ -289,8 +357,8 @@ class subquestion_plan
             if ($this->resources) {
                 foreach ($this->resources as $resource) {
                     $input_resources_id[$resource->id] = $resource->id;
-                    if ($resource->id && empty($resource->title)) {
-                        $resource->delete();
+                    if ($resource->id && (empty($resource->title) && empty($resource->title_editor['text']))) {
+                        $resource->delete($context);
                     } else {
                         $resource->save($context, true);
                     }
@@ -300,16 +368,18 @@ class subquestion_plan
             foreach ($resource_record_ids as $resource_record_id) {
                 if (!in_array($resource_record_id->id, $input_resources_id)) {
                     $resourceplan = \format_udehauthoring\model\resource_plan::instance_by_id($resource_record_id->id);
-                    $resourceplan->delete();
+                    $resourceplan->delete($context);
                 }
             }
         }
     }
 
-    public function delete() {
+    public function delete($context) {
         global $DB;
-        foreach ($this->explorations as $exploration) {
-            $exploration->delete();
+        if (isset($this->explorations)) {
+            foreach ($this->explorations as $exploration) {
+                $exploration->delete();
+            }
         }
 
         utils::db_bump_timechanged('udehauthoring_section', $this->audehsectionid);
@@ -326,6 +396,9 @@ class subquestion_plan
         foreach ($following_siblings as $following_sibling) {
             utils::db_bump_timechanged('udehauthoring_sub_question', $following_sibling->id);
         }
+
+        utils::deleteAssociatedAutoSavesAndFiles($context, 'course_subquestion_title_' . $this->id);
+        utils::deleteAssociatedAutoSavesAndFiles($context, 'course_subquestion_enonce_' . $this->id);
 
         return $DB->delete_records('udehauthoring_sub_question', ['id' => $this->id]);
     }

@@ -12,6 +12,7 @@ use format_udehauthoring\utils;
 require_once($CFG->libdir . '/gradelib.php');
 require_once("{$CFG->libdir}/grade/grade_category.php");
 require_once($CFG->dirroot.'/grade/edit/tree/lib.php');
+require_once($CFG->dirroot.'/course/format/udehauthoring/constants.php');
 
 class content
 {
@@ -30,6 +31,22 @@ class content
     }
 
     public function publish() {
+        global $DB;
+
+        $record = $DB->get_record('udehauthoring_title', ['audehcourseid' => $this->course_plan->id]);
+
+        if (!$record) {
+            $recordt = new \stdClass();
+            $recordt->audehcourseid = $this->course_plan->id;
+            $recordt->module = BASE_MOD_NAME;
+            $recordt->question = BASE_QUESTION_NAME;
+            $recordt->question_explore = BASE_QUESTION_EXPLORE_NAME;
+            $recordt->question_hide = BASE_QUESTION_HIDE_NAME;
+            $recordt->question_sub = BASE_QUESTION_SUB_NAME;
+            $recordt->timemodified = time();
+            $DB->insert_record('udehauthoring_title', $recordt);
+        }
+
         $modinfo = get_fast_modinfo($this->course, -1);
 
         $cms = [];
@@ -233,8 +250,17 @@ class content
             }
         }
 
+        $questionContent = file_rewrite_pluginfile_urls(
+            $this->course_plan->question,
+            'pluginfile.php',
+            $context->id,
+            'format_udehauthoring',
+            'course_question',
+            0
+        );
+
         $course->summary = <<<EOD
-            <div class='udeha-course-question'>{$this->course_plan->question}</div>
+            <div class='udeha-course-question'>{$questionContent}</div>
             <div id="udeha-course-introduction" class="collapse">{$introductionfilehtml}</div>
         EOD;
 
@@ -247,6 +273,8 @@ class content
         $context_course = \context_course::instance($this->course_plan->courseid);
 
         $course_section_records = $this->target->get_existing_sections($this->course_plan->courseid);
+
+        $titles = $DB->get_record('udehauthoring_title', ['audehcourseid' => $this->course_plan->id]);
 
         // syllabus section
         $course_section_record = $course_section_records[0];
@@ -271,7 +299,7 @@ class content
 
             $course_section_record->summary = $this->render_module_preview(
                 $vignettefilehtml,
-                get_string('moduleintroduction', 'format_udehauthoring'),
+                $titles->module . ' introduction',
                 get_string('courseplan', 'format_udehauthoring'),
                 $page_url
             );
@@ -281,7 +309,16 @@ class content
 
         // course sections
         foreach ($this->course_plan->sections as $ii => $section) {
+            if ($this->target instanceof target\official) {
+                $section->isvisible = $section->isvisiblepreview;
+                $section->updateVisibility($section->id, $section->isvisiblepreview);
+            }
+
             $sectionindex = $ii + 1;
+
+            if ($section->title === '' || $section->title === null) {
+                continue;
+            }
             $course_section_record = $course_section_records[$sectionindex];
 
             $vignettehaschanges = utils::copyToFilearea(
@@ -289,7 +326,7 @@ class content
                 $context_course->id, 'course', 'section', $course_section_record->id
             );
 
-            if (!$vignettehaschanges && $section->timemodified < $course_section_record->timemodified && $course_section_record->summary !== structure::$CONTENT_PLACEHOLDER) {
+            if ((!$vignettehaschanges && $section->timemodified < $course_section_record->timemodified && $course_section_record->summary !== structure::$CONTENT_PLACEHOLDER) || intval($section->isvisible) === 0) {
                 continue;
             }
 
@@ -305,10 +342,23 @@ class content
                 $vignettefilehtml = reset($vignettefilehtml);
             }
 
+            $values = [];
+            $editors = ['title', 'description'];
+            foreach ($editors as $editor) {
+                $values[$editor] = file_rewrite_pluginfile_urls(
+                    $section->{$editor},
+                    'pluginfile.php',
+                    $context_course->id,
+                    'format_udehauthoring',
+                    'course_section_' . $editor . '_' . $section->id,
+                    0
+                );
+            }
+
             $course_section_record->summary = $this->render_module_preview(
                 $vignettefilehtml,
-                "Module " . $sectionindex . " : " . strip_tags($section->title, '<strong><em><sup><sub>'),
-                $section->description,
+                $titles->module . " " . $sectionindex . " : " . $values['title'],
+                $values['description'],
                 $page_url
             );
             $course_section_record->timemodified = time();
@@ -334,7 +384,11 @@ class content
             'format' => $record->introformat
         ];
         $displayoptions = unserialize($record->displayoptions);
-        $record->printheading = $displayoptions['printheading'];
+        if(isset($displayoptions['printheading'])) {
+            $record->printheading = $displayoptions['printheading'];
+        } else {
+            $record->printheading = null;
+        }
         $record->printintro = $displayoptions['printintro'];
         $record->printlastmodified = $displayoptions['printlastmodified'];
 
@@ -393,7 +447,7 @@ class content
                 case 'evaluations':
                     $this->publish_syllabus_evaluations($cms, $index, $maxtimemodified);
                     break;
-                case 'annex':
+                case 'additionalinformation':
                     $this->publish_syllabus_extra($cms, $index, $maxtimemodified);
                     break;
             }
@@ -411,11 +465,23 @@ class content
         }
 
         $str_download = get_string('downloadcourseplan', 'format_udehauthoring');
-
         $parts_html = '';
         foreach($syllabusparts as $ii => $partname) {
             $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, 0, $ii);
-            $label = get_string("syllabustitle_{$partname}", 'format_udehauthoring');
+            if($partname === 'sections') {
+                $sectionLabel = $DB->get_record(
+                    'udehauthoring_title',
+                    ['audehcourseid' => $this->course_plan->id]
+                )->module;
+                $label = get_string("syllabustitle_{$partname}", 'format_udehauthoring', strtolower($sectionLabel));
+            } else {
+                $label = get_string("syllabustitle_{$partname}", 'format_udehauthoring');
+            }
+
+            if($partname === 'additionalinformation' && count($this->course_plan->additionalinformation) <= 0) {
+                continue;
+            }
+
             $parts_html .= $this->render_subquestion_preview(0, $ii + 1, $label, $cms[$cmidnumber]->url);
         }
 
@@ -475,7 +541,7 @@ class content
         $this->update_page(
             $cminfo,
             get_string('presentation', 'format_udehauthoring'),
-            $this->syllabus_content->get_presentation_content());
+            '<h3>' . get_string('presentation', 'format_udehauthoring') . '</h3><hr/>' . $this->syllabus_content->get_presentation_content());
     }
 
 
@@ -493,7 +559,7 @@ class content
         $this->update_page(
             $cminfo,
             get_string('coursedescription', 'format_udehauthoring'),
-            $this->syllabus_content->get_desc_content());
+            '<h3>' . get_string('syllabustitle_description', 'format_udehauthoring') . '</h3><hr/>' . $this->syllabus_content->get_desc_content());
     }
 
     private function publish_syllabus_objectives($cms, $index, $maxtimemodified) {
@@ -511,7 +577,7 @@ class content
         $this->update_page(
             $cminfo,
             get_string('teachingobjectives', 'format_udehauthoring'),
-            $this->syllabus_content->get_objectives_content());
+            '<h3>' . get_string('syllabustitle_teachingobjectives', 'format_udehauthoring') . '</h3><hr/><br />' . $this->syllabus_content->get_objectives_content());
     }
 
     private function publish_syllabus_problematic($cms, $index, $maxtimemodified) {
@@ -523,12 +589,13 @@ class content
 
         if ($page->timemodified > $maxtimemodified && $page->content !== structure::$CONTENT_PLACEHOLDER) {
             return;
+
         }
 
         $this->update_page(
             $cminfo,
             get_string('syllabustitle_problematic', 'format_udehauthoring'),
-            $this->syllabus_content->get_problematic_content());
+            '<h3>' . get_string('syllabustitle_problematic', 'format_udehauthoring') . '</h3><hr/>' . $this->syllabus_content->get_problematic_content());
     }
 
     private function publish_syllabus_place($cms, $index, $maxtimemodified) {
@@ -545,7 +612,7 @@ class content
         $this->update_page(
             $cminfo,
             get_string('placeprog', 'format_udehauthoring'),
-            $this->syllabus_content->get_place_content());
+            '<h3>' . get_string('syllabustitle_place', 'format_udehauthoring') . '</h3><hr/>' . $this->syllabus_content->get_place_content());
     }
 
     private function publish_syllabus_method($cms, $index, $maxtimemodified) {
@@ -562,7 +629,7 @@ class content
         $this->update_page(
             $cminfo,
             get_string('syllabustitle_method', 'format_udehauthoring'),
-            $this->syllabus_content->get_method_content());
+            '<h3>' . get_string('syllabustitle_method', 'format_udehauthoring') . '</h3><hr/>' . $this->syllabus_content->get_method_content());
     }
 
     private function publish_syllabus_modules($cms, $index, $maxtimemodified) {
@@ -578,8 +645,16 @@ class content
 
         $this->update_page(
             $cminfo,
-            get_string('modulescontent', 'format_udehauthoring'),
-            $this->syllabus_content->get_modules_content());
+            get_string(
+                    'modulescontent',
+                    'format_udehauthoring',
+                    strtolower($DB->get_record('udehauthoring_title', ['id' => $this->course_plan->id])->module)
+            ),
+            '<h3>' . get_string(
+                    'syllabustitle_sections',
+                    'format_udehauthoring',
+                    strtolower($DB->get_record('udehauthoring_title', ['id' => $this->course_plan->id])->module)
+            ) . '</h3><hr/><br />' . $this->syllabus_content->get_modules_content());
     }
 
     private function publish_syllabus_evaluations($cms, $index, $maxtimemodified) {
@@ -596,7 +671,7 @@ class content
         $this->update_page(
             $cminfo,
             get_string('evaluations', 'format_udehauthoring'),
-            $this->syllabus_content->get_evaluations_content());
+            '<h3>' . get_string('syllabustitle_evaluations', 'format_udehauthoring') . '</h3><hr/>' . $this->syllabus_content->get_evaluations_content());
     }
 
     private function publish_syllabus_extra($cms, $index, $maxtimemodified) {
@@ -613,18 +688,22 @@ class content
         $this->update_page(
             $cminfo,
             get_string('extrainfo', 'format_udehauthoring'),
-            $this->syllabus_content->get_extra_content());
+            '<h3>' . get_string('syllabustitle_annex', 'format_udehauthoring') . '</h3><hr/><br />' . $this->syllabus_content->get_extra_content(false));
     }
 
     private function publish_section_pages($cms) {
         global $DB;
 
+        $titles = $DB->get_record('udehauthoring_title', ['audehcourseid' => $this->course_plan->id]);
+
         foreach ($this->course_plan->sections as $ii => $section) {
             $sectionindex = $ii + 1;
+            if ($section->title === '' || $section->title === null) {
+                continue;
+            }
             $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $sectionindex);
             $cminfo = $cms[$cmidnumber];
             $page = $DB->get_record('page', ['id' => $cminfo->instance], 'content, timemodified', MUST_EXIST);
-
             $context_course = \context_course::instance($this->course_plan->courseid);
             $context_module = \context_module::instance($cminfo->id);
             $fileschanged = utils::copyToFilearea(
@@ -664,34 +743,58 @@ class content
 
             $evaluations_html = '';
             foreach($this->course_plan->evaluations as $jj => $evaluation) {
-                if ($section->id === $evaluation->audehsectionid) {
-                    $evaltitle = strip_tags($evaluation->title, '<strong><em><sup><sub>');
+                if (in_array($section->id, array_keys($evaluation->audehsectionids))) {
+                    $evaltitle = file_rewrite_pluginfile_urls(
+                        $evaluation->title,
+                        'pluginfile.php',
+                        \context_course::instance($this->course_plan->courseid)->id,
+                        'format_udehauthoring',
+                        'course_evaluation_title_' . $evaluation->id,
+                        0
+                    );
 
                     $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $jj, false, true);
                     $evalcminfo = $cms[$cmidnumber];
 
                     $evalurl = new \moodle_url('/mod/' . $evalcminfo->modname . '/view.php', ['id' => $evalcminfo->id]);
 
+                    $evalDesc = file_rewrite_pluginfile_urls(
+                        $evaluation->description,
+                        'pluginfile.php',
+                        \context_course::instance($this->course_plan->courseid)->id,
+                        'format_udehauthoring',
+                        'course_evaluation_description_' . $evaluation->id,
+                        0
+                    );
                     $evaluations_html .= "<h3>{$evaltitle}</h3>
-                        <div class='udeha-evaluation-description'>{$evaluation->description}</div>
+                        <div class='udeha-evaluation-description'>{$evalDesc}</div>
                         <div class='udeha-evaluation-link'><a class='btn btn-primary' href='{$evalurl}'>" . get_string('evalanswer', 'format_udehauthoring') . "</a></div>";
                 }
             }
+
             if (empty($evaluations_html)) {
                 $evaluations_html = get_string('noeval', 'format_udehauthoring');
             }
-            $evaluations_html = "<div class='udeha-section-evaluations'>{$evaluations_html}</div>";
+            $evaluations_html = "{$evaluations_html}";
 
-            $titlesubquestion = get_string('titlesubquestion', 'format_udehauthoring', $sectionindex);
+            $titlesubquestion = $titles->question . ' ' . $sectionindex;
 
-            $str_show = '<i class="icon fa fa-bars"></i>' . get_string('btnsubquestionsshow', 'format_udehauthoring');
-            $str_hide = '<i class="icon fa fa-times"></i>' . get_string('btnsubquestionshide', 'format_udehauthoring');
+            $str_show = '<i class="icon fa fa-bars"></i>' . $titles->question_explore;
+            $str_hide = '<i class="icon fa fa-times"></i>' . $titles->question_hide;
+            $question = file_rewrite_pluginfile_urls(
+                $section->question,
+                'pluginfile.php',
+                \context_course::instance($this->course_plan->courseid)->id,
+                'format_udehauthoring',
+                'course_section_question_' . $section->id,
+                0
+            );
             $sectionelements = <<<EOD
                 <hr class="udeha-separator udeha-subquestions-separator">
                 <div class="udeha-section-elements">
                     <div class="udeha-section-subquestion">
                         <h3>{$titlesubquestion}</h3>
-                        <div class="udeha-question-text">{$section->question}</div>
+                        <div class="udeha-question-text">{$question}</div>
                         <div class="udeha-subquestions-actions">
                             <a class="collapsed btn-subquestions btn btn-secondary" data-toggle="collapse" href="#udeha-list-subquestions" aria-expanded="false">
                                     <span class="label-show">{$str_show}</span>
@@ -709,21 +812,53 @@ class content
             foreach ($section->subquestions as $subindex => $subquestion) {
                 $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $sectionindex, $subindex);
                 $subcminfo = $cms[$cmidnumber];
-                $subquestions_html .= self::render_subquestion_preview($sectionindex, $subindex+1, $subquestion->title, $subcminfo->url);
+                $subquestions_html .= self::render_subquestion_preview(
+                        $sectionindex,
+                        $subindex+1,
+                        file_rewrite_pluginfile_urls(
+                            $subquestion->title,
+                            'pluginfile.php',
+                            \context_course::instance($this->course_plan->courseid)->id,
+                            'format_udehauthoring',
+                            'course_subquestion_title_' . $subquestion->id,
+                            0
+                        ),
+                        $subcminfo->url
+                );
             }
             $subquestions_html = "<table class='udeha-subquestions'>{$subquestions_html}</table>";
 
-            $content = $section->introductiontext .
+            $content = file_rewrite_pluginfile_urls(
+                $section->introductiontext,
+                'pluginfile.php',
+                \context_course::instance($this->course_plan->courseid)->id,
+                'format_udehauthoring',
+                'course_section_introductiontext_' . $section->id,
+                0
+            ) .
                 $introductionfilehtml .
                 $sectionelements .
                 "<div id='udeha-list-subquestions' class='collapse'>" .
-                "<h3>" . get_string('titlesubquestions', 'format_udehauthoring') . "</h3>" .
+                "<h3>" . $titles->question_sub . "</h3>" .
                 $subquestions_html .
                 "</div>";
 
             // END PAGE CONTENT
+            $formattedTitle = file_rewrite_pluginfile_urls(
+                $section->title,
+                'pluginfile.php',
+                \context_course::instance($this->course_plan->courseid)->id,
+                'format_udehauthoring',
+                'course_section_title_' . $section->id,
+                0
+            );
 
-            $this->update_page($cminfo, $section->title, $content);
+            $strippedTitle = strip_tags(
+                syllabus::cleanEditorContentForCoursePlan($formattedTitle),
+                '<strong><em><sup><sub>'
+            );
+
+            $this->update_page($cminfo, $strippedTitle, '<h3>' . $formattedTitle . '</h3><hr/><br />' . $content);
         }
 
     }
@@ -790,20 +925,20 @@ class content
 
                 $explorationsync_html = '';
                 $explorationasync_html = '';
-                foreach ($subquestion->explorations as $exploration) {
+                foreach ($subquestion->explorations as $expindex => $exploration) {
 
-                    switch($exploration->grouping) {
+                    switch($exploration->party) {
                         case 0:
-                            $groupingicon = "<i class='icon fa fa-user'></i>";
+                            $partyicon = "<i class='icon fa fa-user'></i>";
                             break;
                         case 1:
-                            $groupingicon = "<i class='icon fa fa-user-plus'></i>";
+                            $partyicon = "<i class='icon fa fa-user-plus'></i>";
                             break;
                         case 2:
-                            $groupingicon = "<i class='icon fa fa-comments'></i>";
+                            $partyicon = "<i class='icon fa fa-comments'></i>";
                             break;
                         default:
-                            $groupingicon = '';
+                            $partyicon = '';
                             break;
                     }
 
@@ -813,7 +948,9 @@ class content
                     if ($exploration->toolcmid) {
                         list($course, $cmsource) = get_course_and_cm_from_cmid($exploration->toolcmid);
 
-                        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $sectionindex, $subindex, false, 0);
+
+
+                        $cmidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $sectionindex, $subindex, false, $expindex);
 
                         // only regenerate if modifications were done
                         if (isset($cms[$cmidnumber])) {
@@ -849,7 +986,7 @@ class content
 
                     <tr class='udeha-exploration'>
                         <td class='udeha-exploration-icon'>
-                            <?php echo $groupingicon; ?>
+                            <?php echo $partyicon; ?>
                         </td>
                         <td class='udeha-exploration-details'>
 
@@ -858,7 +995,14 @@ class content
                                     <th><?php print_string('titleexplorationtype', 'format_udehauthoring'); ?></th>
                                     <td>
                                         <?php if($exploration->activitytype == count(exploration_plan::activity_type_list()) - 1): ?>
-                                            <?php echo $exploration->activityfreetype; ?>
+                                            <?php echo file_rewrite_pluginfile_urls(
+                                                $exploration->activityfreetype,
+                                                'pluginfile.php',
+                                                $context_course->id,
+                                                'format_udehauthoring',
+                                                'course_exploration_activityfreetype_' . $exploration->id,
+                                                0
+                                            ); ?>
                                         <?php else: ?>
                                             <?php echo exploration_plan::get_activity_type_from_index($exploration->activitytype); ?>
                                         <?php endif; ?>
@@ -870,7 +1014,16 @@ class content
                                         <td><?php echo $duration; ?></td>
                                     </tr>
                                 <?php endif; ?>
-                                <?php if (!empty($instructions = trim($exploration->instructions))): ?>
+                                <?php
+                                    if (!empty($instructions = file_rewrite_pluginfile_urls(
+                                        $exploration->instructions,
+                                        'pluginfile.php',
+                                        $context_course->id,
+                                        'format_udehauthoring',
+                                        'course_exploration_instructions_' . $exploration->id,
+                                        0
+                                    )))
+                                : ?>
                                 <tr>
                                     <th><?php print_string('titleexplorationinstructions', 'format_udehauthoring'); ?></th>
                                     <td><?php echo $instructions; ?></td>
@@ -881,8 +1034,8 @@ class content
                                     <td><?php echo exploration_plan::get_location_from_index($exploration->location); ?></td>
                                 </tr>
                                 <tr>
-                                    <th><?php print_string('titleexplorationgrouping', 'format_udehauthoring'); ?></th>
-                                    <td><?php echo exploration_plan::get_grouping_from_index($exploration->grouping); ?></td>
+                                    <th><?php print_string('titleexplorationparty', 'format_udehauthoring'); ?></th>
+                                    <td><?php echo exploration_plan::get_party_from_index($exploration->party); ?></td>
                                 </tr>
                             </table>
 
@@ -931,12 +1084,30 @@ class content
                         $vignettehtml = reset($vignettefilehtml);
                     }
 
-                    $resources_html .= <<<EOD
+                    $title = file_rewrite_pluginfile_urls(
+                        $resource->title,
+                        'pluginfile.php',
+                        $context_course->id,
+                        'format_udehauthoring',
+                        'course_resource_title_' . $resource->id,
+                        0
+                    );
+
+                    if(str_contains($title, 'h5p')) {
+                        $resources_html .= <<<EOD
                         <tr class="udeha-resource">
                             <td class="udeha-resource-vignette">{$vignettehtml}</td>
-                            <td class="udeha-resource-link"><a href="{$resource->link}">{$resource->title}</a></td>
+                            <td class="udeha-resource-link"><a href="{$resource->link}">lien</a>{$title}</td>
                         </tr>
                     EOD;
+                    } else {
+                        $resources_html .= <<<EOD
+                        <tr class="udeha-resource">
+                            <td class="udeha-resource-vignette">{$vignettehtml}</td>
+                            <td class="udeha-resource-link"><a href="{$resource->link}">{$title}</a></td>
+                        </tr>
+                    EOD;
+                    }
                 }
 
                 $str_titleresources = get_string('titleresources', 'format_udehauthoring');
@@ -955,13 +1126,17 @@ class content
 
                 $vignettehtml = "<div class='udeha-subquestion-vignette'>{$vignettehtml}</div>";
 
-                $str_titlesubquestion = get_string('titlesubquestionenonce', 'format_udehauthoring', (object)[
-                    'title' => strip_tags($subquestion->title, '<strong><em><sup><sub>'),
-                    'index' => $ii+1,
-                    'subindex' => $subindex+1
-                ]);
+                $enonce = file_rewrite_pluginfile_urls(
+                    $subquestion->enonce,
+                    'pluginfile.php',
+                    $context_course->id,
+                    'format_udehauthoring',
+                    'course_subquestion_enonce_' . $subquestion->id,
+                    0
+                );
+
                 $enoncehtml = "<div class='udeha-subquestion-enonce'>
-                    {$subquestion->enonce}
+                    {$enonce}
                     </div>";
 
                 $explorations_html = $explorationsync_html . $explorationasync_html;
@@ -976,7 +1151,21 @@ class content
                     '<hr class="udeha-separator udeha-resources-separator">' .
                     $resources_html;
 
-                $this->update_page($cminfo, $str_titlesubquestion, $content);
+                $formattedTitle = file_rewrite_pluginfile_urls(
+                    $subquestion->title,
+                    'pluginfile.php',
+                    $context_course->id,
+                    'format_udehauthoring',
+                    'course_subquestion_title_' . $subquestion->id,
+                    0
+                );
+
+                $strippedTitle = strip_tags(
+                    syllabus::cleanEditorContentForCoursePlan($formattedTitle),
+                    '<strong><em><sup><sub>'
+                );
+
+                $this->update_page($cminfo, $strippedTitle, '<h3>' . $formattedTitle . '</h3><hr/><br />' . $content);
             }
         }
     }
@@ -994,7 +1183,14 @@ class content
             $parts_html = '';
             foreach ($this->course_plan->evaluations as $ii => $evaluation) {
                 $toolidnumber = $this->target->make_cmidnumber($this->course_plan->courseid, $ii, false, true);
-                $evaltitle = strip_tags($evaluation->title, '<strong><em><sup><sub>');
+                $evaltitle = file_rewrite_pluginfile_urls(
+                    $evaluation->title,
+                    'pluginfile.php',
+                    \context_course::instance($this->course_plan->courseid)->id,
+                    'format_udehauthoring',
+                    'course_evaluation_title_' . $evaluation->id,
+                    0
+                );
                 $parts_html .= $this->render_subquestion_preview($ii + 1, null, $evaltitle, $cms[$toolidnumber]->url);
             }
             if (empty($parts_html)) {
@@ -1100,12 +1296,29 @@ class content
 
             if ($fileschanged || $page->timemodified < $evaluation->timemodified || $page->content === structure::$CONTENT_PLACEHOLDER ||
                 ($evaluation->toolcmid && $page->timemodified < $sourceinstance_timemodified)) {
-                $evaltitle = strip_tags($evaluation->title, '<strong><em><sup><sub>');
+
+                $formattedTitle = file_rewrite_pluginfile_urls(
+                    $evaluation->title,
+                    'pluginfile.php',
+                    $context_course->id,
+                    'format_udehauthoring',
+                    'course_evaluation_title_' . $evaluation->id,
+                    0
+                );
 
                 ob_start(); ?>
                 <div class='udeha-evaluation-top'>
                     <div class="udeha-evaluation-shortdesc">
-                        <?php echo $evaluation->description; ?>
+                        <?php
+                            echo file_rewrite_pluginfile_urls(
+                                $evaluation->description,
+                                'pluginfile.php',
+                                \context_course::instance($this->course_plan->courseid)->id,
+                                'format_udehauthoring',
+                                'course_evaluation_description_' . $evaluation->id,
+                                0
+                            );
+                        ?>
                         <table class="udeha-evaluation-table">
                             <tr>
                                 <th><?php print_string('evaluationweight', 'format_udehauthoring'); ?></th>
@@ -1129,7 +1342,16 @@ class content
                 <div class='udeha-evaluation-intro-media'><?php echo $introductionfilehtml; ?></div>
                 <hr class="udeha-separator udeha-subquestions-separator">
                 <div class="udeha-evaluation-description-full">
-                    <?php echo $evaluation->descriptionfull; ?>
+                    <?php
+                        echo file_rewrite_pluginfile_urls(
+                            $evaluation->descriptionfull,
+                            'pluginfile.php',
+                            \context_course::instance($this->course_plan->courseid)->id,
+                            'format_udehauthoring',
+                            'course_evaluation_descriptionfull_' . $evaluation->id,
+                            0
+                        );
+                    ?>
                 </div>
                 <?php
 
@@ -1170,13 +1392,31 @@ class content
                     <?php if(!empty($evaluation->instructions)): ?>
                     <div class="udeha-evaluation-instructions">
                         <h3><?php print_string('evaluationinstructions', 'format_udehauthoring'); ?></h3>
-                        <?php echo $evaluation->instructions; ?>
+                        <?php
+                            echo file_rewrite_pluginfile_urls(
+                                $evaluation->instructions,
+                                'pluginfile.php',
+                                \context_course::instance($this->course_plan->courseid)->id,
+                                'format_udehauthoring',
+                                'course_evaluation_instructions_' . $evaluation->id,
+                                0
+                            );
+                        ?>
                     </div>
                     <?php endif; ?>
                     <?php if(!empty($evaluation->criteria)): ?>
                     <div class="udeha-evaluation-criteria">
                         <h3><?php print_string('evaluationcriteria', 'format_udehauthoring'); ?></h3>
-                        <?php echo $evaluation->criteria; ?>
+                        <?php
+                            echo file_rewrite_pluginfile_urls(
+                                $evaluation->criteria,
+                                'pluginfile.php',
+                                \context_course::instance($this->course_plan->courseid)->id,
+                                'format_udehauthoring',
+                                'course_evaluation_criteria_' . $evaluation->id,
+                                0
+                            );
+                        ?>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -1186,7 +1426,12 @@ class content
 
                 <?php $evalcontent = ob_get_clean();
 
-                $this->update_page($cminfo, $evaltitle, $evalcontent);
+                $strippedTitle = strip_tags(
+                    syllabus::cleanEditorContentForCoursePlan($formattedTitle),
+                    '<strong><em><sup><sub>'
+                );
+
+                $this->update_page($cminfo, $strippedTitle, '<h3>' . $formattedTitle . '</h3><hr/><br />' . $evalcontent);
             }
         }
 

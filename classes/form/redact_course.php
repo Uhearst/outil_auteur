@@ -34,6 +34,8 @@ class redact_course extends \moodleform
 
         $this->buildCourseInformations($mform);
 
+        $this->buildExtraFields($mform);
+
         $this->buildTeachingObjective($mform);
 
         $this->buildSections($mform);
@@ -55,12 +57,21 @@ class redact_course extends \moodleform
             $mform->addElement('html', '<p class="ml-3 mt-1">' . get_string('instructionscoursegeneralinformations', 'format_udehauthoring') . '</p>');
         }
 
-        $mform->addElement('html', '<h2 class="ml-3 mt-2 page-title">' . get_string('coursegeneralinformations', 'format_udehauthoring') . '</h2>');
+        $mform->addElement('html', '<h2 class="ml-3 mr-2 page-title">' . get_string('coursegeneralinformations', 'format_udehauthoring') . '</h2><br />');
 
-        $mform->addElement('textarea', 'course_title', get_string('coursetitle', 'format_udehauthoring'), ['class'=>'inline-element']);
+        $mform->addElement('textarea', 'course_title', get_string('coursetitle', 'format_udehauthoring'), ['maxlength' => 200]);
         $mform->setType('course_title', PARAM_RAW);
 
-        $mform->addElement('editor', 'course_question', get_string('coursequestion', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = format_udehauthoring_get_editor_options($context);
+        $mform->addElement('editor', 'course_question', get_string('coursequestion', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('course_question', PARAM_RAW);
 
         $options = array(
@@ -102,7 +113,7 @@ class redact_course extends \moodleform
         $mform->addElement('text', 'course_zoom_link', get_string('coursezoomlink', 'format_udehauthoring'));
         $mform->setType('course_zoom_link', PARAM_RAW);
 
-        $mform->addElement('editor', 'course_description', get_string('coursedescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $mform->addElement('editor', 'course_description', get_string('coursedescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('course_description', PARAM_RAW);
 
         $mform->addElement('html', '<div class="custom-control custom-switch udeh-custom-switch ml-3 mb-2 mt-5">
@@ -114,7 +125,7 @@ class redact_course extends \moodleform
         $mform->setType('isembed', PARAM_INT);
         $mform->setDefault('isembed', 0);
 
-        $mform->addElement('textarea', 'course_introduction_embed', get_string('courseintroductionembed', 'format_udehauthoring'), ['class'=>'inline-element']);
+        $mform->addElement('textarea', 'course_introduction_embed', get_string('courseintroductionembed', 'format_udehauthoring'), ['rows'=>'4']);
         $mform->setType('course_introduction_embed', PARAM_RAW);
 
         $mform->addElement('filemanager', 'course_introduction', get_string('courseintroduction', 'format_udehauthoring'), null,
@@ -125,17 +136,14 @@ class redact_course extends \moodleform
             array('subdirs' => false, 'maxfiles' => 1, 'accepted_types' => array('jpeg', 'jpg', 'png')));
         $mform->setType('course_vignette', PARAM_RAW);
 
-        $mform->addElement('editor', 'course_problematic', get_string('courseproblematic', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $mform->addElement('editor', 'course_problematic', get_string('courseproblematic', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('course_problematic', PARAM_RAW);
 
-        $mform->addElement('editor', 'course_place_in_program', get_string('courseplace', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $mform->addElement('editor', 'course_place_in_program', get_string('courseplace', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('course_place_in_program', PARAM_RAW);
 
-        $mform->addElement('editor', 'course_method', get_string('coursemethod', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $mform->addElement('editor', 'course_method', get_string('coursemethod', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $mform->setType('course_method', PARAM_RAW);
-
-        $mform->addElement('editor', 'course_annex', get_string('courseannex', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
-        $mform->setType('course_annex', PARAM_RAW);
 
         $mform->addElement('html', '</div>');
 
@@ -163,7 +171,77 @@ class redact_course extends \moodleform
             ['courseannex', 'course_annex']), $mform);
     }
 
+    function buildExtraFields($mform) {
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = format_udehauthoring_get_editor_options($context);
+
+        $mform->addElement('html', '<div id="displayable-form-additional-information-container" style="display: none; height: 100%;">');
+
+        $mform->addElement('html', '<h2 class="ml-3 mr-2 mb-1 page-title">' . get_string('additionalinformation', 'format_udehauthoring') . '</h2>
+            <i class="legend">' . get_string('mandatoryfield', 'format_udehauthoring') . '</i>');
+
+        $mform->addElement('html', '<div id="add_info_0" class="additional-info-container row row-container mb-3">');
+
+        $mform->addElement('html', '<div class="col-11 card accordion-container">');
+
+        $mform->addElement('html', '<div id="course_addinfo_header_0" class="accordion-header card-header">
+            <a data-toggle="collapse" href="#collapse_addinfo_header_0" role="button" aria-expanded="false" aria-controls="collapse_addinfo_header_0" class="collapsed" style="position: relative;left: -5px;">'. get_string('field', 'format_udehauthoring') . ' 1</a>');
+        $mform->addElement('html', '</div>');
+
+        $mform->addElement('html', '<div class="collapse" id="collapse_addinfo_header_0" data-parent="#displayable-form-additional-information-container">');
+        $mform->addElement('html', '<div class="card-body accordion-content" id="course_addinfo_0">');
+
+        $mform->addElement('textarea', 'add_info_title_0', get_string('addinfotitle', 'format_udehauthoring') . ' <i class="star">*</i> ', ['class'=>'title-editor add-info-title', 'rows'=>'1']);
+
+        $mform->addElement('editor', 'add_info_content_0', get_string('addinfocontent', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
+
+        $mform->addElement('html', '</div>');
+        $mform->addElement('html', '</div>');
+
+        $mform->addElement('html', '</div>');
+
+        $mform->addElement('html', '<div class="col-1 remove_add_info_action_button">');
+        $mform->addElement('button', 'remove_add_info_0', '<i class="remove-button-js fa fa-minus-circle fa-2x"></i>');
+        $mform->addElement('html', '</div>');
+
+        $mform->addElement('html', '</div>');
+
+        $mform->addElement('html', '<div id="addinfo-add-container" class="row accordion-add-container">');
+
+        $mform->addElement('html', '<div class="col-11 add-container-text card-header card">');
+        $mform->addElement('html', '<span class="add-text">'. get_string('addinfo', 'format_udehauthoring') . '</span>');
+        $mform->addElement('html', '</div>');
+
+        $mform->addElement('html', '<div class="col-1 add_action_button">');
+        $mform->addElement('button', 'add_info', '<i class="add-button fa fa-plus-circle fa-2x"></i>');
+        $mform->addElement('html', '</div>');
+
+        $mform->addElement('html', '</div>');
+
+        $mform->addElement('html', '</div>');
+
+        $mform->setType('add_info_title_0', PARAM_RAW);
+        $mform->setType('add_info_content_0', PARAM_RAW);
+    }
+
     function buildTeachingObjective($mform) {
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = format_udehauthoring_get_editor_options($context);
+
         $mform->addElement('html', '<div id="displayable-form-objectives-container" style="display: none">');
 
         if(get_string_manager()->string_exists('instructionscourseteachingobjectives', 'format_udehauthoring') && get_string('instructionscourseteachingobjectives', 'format_udehauthoring')) {
@@ -180,12 +258,12 @@ class redact_course extends \moodleform
         $repeatarrayteachingobjectives[] = $mform->createElement('html', '<div class="row row-container mb-3">');
         $repeatarrayteachingobjectives[] = $mform->createElement('html', '<div id="course_teaching_objectives_container_0" class="col-11 accordion-container card">');
         $repeatarrayteachingobjectives[] = $mform->createElement('html', '<div id="course_teaching_objectives_header_0" class="accordion-header card-header"/>
-          <a data-toggle="collapse" href="#collapse_teaching_0" role="button" aria-expanded="true" aria-controls="collapse_teaching_0">'
+          <a data-toggle="collapse" href="#collapse_teaching_0" role="button" aria-expanded="false" aria-controls="collapse_teaching_0" class="collapsed">'
              . get_string('teachingobjective', 'format_udehauthoring') . ' ' . 1 .
           '</a></div>');
-        $repeatarrayteachingobjectives[] = $mform->createElement('html', '<div class="collapse show" id="collapse_teaching_0" data-parent="#displayable-form-objectives-container">');
+        $repeatarrayteachingobjectives[] = $mform->createElement('html', '<div class="collapse" id="collapse_teaching_0" data-parent="#displayable-form-objectives-container">');
         $repeatarrayteachingobjectives[] = $mform->createElement('html', '<div class="card-body accordion-content" id="course_teaching_objectives_0">');
-        $repeatarrayteachingobjectives[] = $mform->createElement('editor', 'course_teaching_objectives_0', '', ['class'=>'regular-editor', 'rows'=>'4']);
+        $repeatarrayteachingobjectives[] = $mform->createElement('editor', 'course_teaching_objectives_0', '', ['class'=>'regular-editor', 'rows'=>'4'], $editoroptions);
         $repeatarrayteachingobjectives[] = $this->buildLearningObjective($mform);
         $repeatarrayteachingobjectives[] = $mform->createElement('html', '</div>');
         $repeatarrayteachingobjectives[] = $mform->createElement('html', '</div>');
@@ -229,6 +307,16 @@ class redact_course extends \moodleform
 
     function buildLearningObjective($mform): array
     {
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = format_udehauthoring_get_editor_options($context);
+
         $repeatarraylearningobjectives = [];
         $competencytypes = ['CT', 'CC', 'CP'];
 
@@ -237,12 +325,12 @@ class redact_course extends \moodleform
         $repeatarraylearningobjectives[] = $mform->createElement('html', '<div class="row row-container-child mb-3">');
         $repeatarraylearningobjectives[] = $mform->createElement('html', '<div id="course_learning_objectives_subcontainer_0_0" class="col-11 accordion-container card">');
         $repeatarraylearningobjectives[] = $mform->createElement('html', '<div id="course_learning_objectives_header_0_0" class="accordion-header card-header"/>
-            <a data-toggle="collapse" href="#collapse_learning_0_0" role="button" aria-expanded="true" aria-controls="collapse_learning_0_0">
+            <a data-toggle="collapse" href="#collapse_learning_0_0" role="button" aria-expanded="false" aria-controls="collapse_learning_0_0" class="collapsed">
                 '. get_string('learningobjective', 'format_udehauthoring') . ' ' . 1.1 .'
             </a></div>');
-        $repeatarraylearningobjectives[] = $mform->createElement('html', '<div class="collapse show" id="collapse_learning_0_0" data-parent="#course_learning_objectives_container_0">');
+        $repeatarraylearningobjectives[] = $mform->createElement('html', '<div class="collapse" id="collapse_learning_0_0" data-parent="#course_learning_objectives_container_0">');
         $repeatarraylearningobjectives[] = $mform->createElement('html', '<div class="card-body accordion-content" id="course_learning_objectives_0_0">');
-        $repeatarraylearningobjectives[] = $mform->createElement('editor', 'course_learning_objectives_def_0_0', '', ['class'=>'regular-editor', 'rows'=>'4']);
+        $repeatarraylearningobjectives[] = $mform->createElement('editor', 'course_learning_objectives_def_0_0', '', ['class'=>'regular-editor', 'rows'=>'4'], $editoroptions);
         $repeatarraylearningobjectives[] = $mform->createElement('select', 'course_learning_objectives_competency_type_0_0', get_string('courselearningobjectivescompetencytype', 'format_udehauthoring'), $competencytypes);
         $repeatarraylearningobjectives[] = $mform->createElement('html', '</div>');
         $repeatarraylearningobjectives[] = $mform->createElement('html', '</div>');
@@ -268,6 +356,16 @@ class redact_course extends \moodleform
     }
 
     function buildSections($mform) {
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = format_udehauthoring_get_editor_options($context);
+
         $mform->addElement('html', '<div id="displayable-form-sections-container" style="display: none">');
 
         if(get_string_manager()->string_exists('instructionscoursesections', 'format_udehauthoring') && get_string('instructionscoursesections', 'format_udehauthoring')) {
@@ -277,7 +375,7 @@ class redact_course extends \moodleform
             $mform->addElement('html', '<p class="ml-3 mt-1">' . get_string('instructionscoursesections', 'format_udehauthoring') . '</p>');
         }
 
-        $mform->addElement('html', '<h2 class="ml-3 mt-2 mb-1 page-title">' . get_string('coursesections', 'format_udehauthoring') . '</h2>');
+        $mform->addElement('html', '<h2 class="ml-3 mr-2 mb-1 page-title">' . get_string('coursesections', 'format_udehauthoring') . '</h2>');
 
         $repeatarray = [];
         $repeatarray[] = $mform->createElement('html', '<div class="row row-container mb-3" id="row_course_module_container_0">');
@@ -285,16 +383,15 @@ class redact_course extends \moodleform
         $repeatarray[] = $mform->createElement('html', '<div class="col-11 card accordion-container">');
 
         $repeatarray[] = $mform->createElement('html', '<div id="course_module_header_0" class="accordion-header card-header">
-            <a data-toggle="collapse" href="#collapse_module_header_0" role="button" aria-expanded="true" aria-controls="collapse_module_header_0">
-                '. get_string('section', 'format_udehauthoring') . ' ' . 1 .'
-            </a>');
+            <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" name="section_isvisible_0" id="section_isvisible_0" checked><label class="custom-control-label" for="section_isvisible_0"></label></div>
+            <a data-toggle="collapse" href="#collapse_module_header_0" role="button" aria-expanded="false" aria-controls="collapse_module_header_0" class="collapsed" style="position: relative;left: -5px;">'. get_string('section', 'format_udehauthoring') . ' 1</a>');
         $repeatarray[] = $mform->createElement('html', '</div>');
 
-        $repeatarray[] = $mform->createElement('html', '<div class="collapse show" id="collapse_module_header_0" data-parent="#displayable-form-sections-container">');
+        $repeatarray[] = $mform->createElement('html', '<div class="collapse" id="collapse_module_header_0" data-parent="#displayable-form-sections-container">');
         $repeatarray[] = $mform->createElement('html', '<div class="card-body accordion-content" id="course_module_0">');
-        $repeatarray[] = $mform->createElement('editor', 'section_title_0', get_string('sectiontitle', 'format_udehauthoring'), ['class'=>'title-editor', 'rows'=>'4']);
-        $repeatarray[] = $mform->createElement('editor', 'section_question_0', get_string('sectionquestion', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
-        $repeatarray[] = $mform->createElement('editor', 'section_description_0', get_string('sectiondescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $repeatarray[] = $mform->createElement('editor', 'section_title_0', get_string('sectiontitle', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
+        $repeatarray[] = $mform->createElement('editor', 'section_question_0', get_string('sectionquestion', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
+        $repeatarray[] = $mform->createElement('editor', 'section_description_0', get_string('sectiondescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $repeatarray[] = $mform->createElement('html', '</div>');
         $repeatarray[] = $mform->createElement('html', '</div>');
 
@@ -306,6 +403,8 @@ class redact_course extends \moodleform
 
         $repeatarray[] = $mform->createElement('html', '</div>');
 
+        $mform->setType('section_isvisible_0', PARAM_INT);
+        $mform->setDefault('section_isvisible_0', 1);
         $mform->setType('section_title_0', PARAM_RAW);
         $mform->setType('section_description_0', PARAM_RAW);
         $mform->setType('section_question_0', PARAM_RAW);
@@ -336,6 +435,16 @@ class redact_course extends \moodleform
     }
 
     function buildEvaluations($mform) {
+        $courseid = $this->_customdata['courseid'];
+
+        if (empty($courseid)) {
+            $context = \context_system::instance();
+        } else {
+            $context = \context_course::instance($courseid);
+        }
+
+        $editoroptions = format_udehauthoring_get_editor_options($context);
+
         $mform->addElement('html', '<div id="displayable-form-evaluations-container" style="display: none">');
 
         if(get_string_manager()->string_exists('instructionscourseevaluations', 'format_udehauthoring') && get_string('instructionscourseevaluations', 'format_udehauthoring')) {
@@ -347,26 +456,25 @@ class redact_course extends \moodleform
 
         $mform->addElement('html', '<h2 class="ml-3 mr-2 page-title">'. get_string('learningevaluations', 'format_udehauthoring') . '</h2>');
 
-        $learningplans = \format_udehauthoring\model\learningobjective_plan::instance_all_by_audeh_course_id($this->_customdata['courseid']);
-        $moduleplans = \format_udehauthoring\model\section_plan::instance_all_by_course_plan_id($this->_customdata['courseid']);
+        $learningplans = \format_udehauthoring\model\learningobjective_plan::instance_all_by_audeh_course_id($this->_customdata['id']);
+        $moduleplans = \format_udehauthoring\model\section_plan::instance_all_by_course_plan_id($this->_customdata['id']);
         $modulearray = [];
         foreach ($moduleplans as $moduleplan) {
             $modulearray[$moduleplan->id] = $moduleplan->title;
         }
-        $modulearray[0] = "Aucun";
 
         $repeatarrayEval = [];
         $repeatarrayEval[] = $mform->createElement('html', '<div class="row row-container mb-3" id="row_course_evaluation_container_0">');
         $repeatarrayEval[] = $mform->createElement('html', '<div class="col-11 accordion-container card">');
         $repeatarrayEval[] = $mform->createElement('html', '<div id="course_evaluation_objectives_header_0" class="accordion-header card-header"/>
-          <a data-toggle="collapse" href="#collapse_evaluation_0" role="button" aria-expanded="true" aria-controls="collapse_evaluation_0">
+          <a data-toggle="collapse" href="#collapse_evaluation_0" role="button" aria-expanded="false" aria-controls="collapse_evaluation_0" class="collapsed">
             '. get_string('evaluation', 'format_udehauthoring') . ' ' . 1 .'
           </a>');
         $repeatarrayEval[] = $mform->createElement('html', '</div>');
-        $repeatarrayEval[] = $mform->createElement('html', '<div class="collapse show" id="collapse_evaluation_0" data-parent="#displayable-form-evaluations-container">');
+        $repeatarrayEval[] = $mform->createElement('html', '<div class="collapse" id="collapse_evaluation_0" data-parent="#displayable-form-evaluations-container">');
         $repeatarrayEval[] = $mform->createElement('html', '<div class="card-body accordion-content" id="course_evaluation_content_0">');
-        $repeatarrayEval[] = $mform->createElement('editor', 'evaluation_title_0', get_string('evaluationtitle', 'format_udehauthoring'), ['class'=>'title-editor', 'rows'=>'4']);
-        $repeatarrayEval[] = $mform->createElement('editor', 'evaluation_description_0', get_string('evaluationdescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4']);
+        $repeatarrayEval[] = $mform->createElement('editor', 'evaluation_title_0', get_string('evaluationtitle', 'format_udehauthoring'), ['class'=>'title-editor', 'rows'=>'4'], $editoroptions);
+        $repeatarrayEval[] = $mform->createElement('editor', 'evaluation_description_0', get_string('evaluationdescription', 'format_udehauthoring'), ['class'=>'full-editor', 'rows'=>'4'], $editoroptions);
         $repeatarrayEval[] = $mform->createElement('text', 'evaluation_weight_0', get_string('evaluationweight', 'format_udehauthoring'));
 
         $lastplan = null;
@@ -379,11 +487,39 @@ class redact_course extends \moodleform
                 $repeatarrayEval[] = $mform->createElement('advcheckbox',
                     'evaluation_learning_objectives_0[' . $plan->id. ']',
                     '',
-                    '<span style="margin-right: 0.5rem;">' . ($key + 1) . '.' . ($learningkey + 1) . ' - ' . '</span>' . $plan->learningobjective);
+                    '<span style="margin-right: 0.5rem;">' . ($key + 1) . '.' . ($learningkey + 1) . ' - ' . '</span>'
+                    . file_rewrite_pluginfile_urls(
+                        $plan->learningobjective,
+                        'pluginfile.php',
+                        $context->id,
+                        'format_udehauthoring',
+                        'course_learningobjective_' . $plan->id,
+                        0
+                    ));
             }
         }
         $repeatarrayEval[] = $mform->createElement('html', '</div>');
-        $repeatarrayEval[] = $mform->createElement('select', 'evaluation_module_0', get_string('evaluationassociatedmodule', 'format_udehauthoring'), $modulearray);
+
+        $lastplan = null;
+        $repeatarrayEval[] = $mform->createElement('html', '<div id="fitem_id_evaluation_module_0" name="evaluation_module_0" class="mt-4 mb-3"> <div id="evaluation_module_title_0" class="d-flex"> <label for="fitem_id_evaluation_module_0" class="d-inline word-break ml-3 eval-obj-title">'. get_string('evaluationassociatedmodule', 'format_udehauthoring') . '</label></div>');
+        foreach($modulearray as $key=>$value) {
+
+
+            $repeatarrayEval[] = $mform->createElement('advcheckbox',
+                'evaluation_module_0[' . $key. ']',
+                '',
+                file_rewrite_pluginfile_urls(
+                    $value,
+                    'pluginfile.php',
+                    $context->id,
+                    'format_udehauthoring',
+                    'course_section_title_' . $key,
+                    0
+                )
+            );
+        }
+        $repeatarrayEval[] = $mform->createElement('html', '</div>');
+
         $repeatarrayEval[] = $mform->createElement('html', '</div>');
         $repeatarrayEval[] = $mform->createElement('html', '</div>');
         $repeatarrayEval[] = $mform->createElement('html', '</div>');

@@ -58,9 +58,8 @@ class evaluationtool_plan
      * @param {string} type
      */
     protected static function formatActivityType($type) {
-        $toReturn = '';
         $availableTools = evaluation_plan::get_available_tools();
-        $val = strtolower($availableTools[$type]);
+        $val = mb_strtolower($availableTools[$type], 'UTF-8');
         switch ($val) {
             case 'assignment':
             case 'devoir':

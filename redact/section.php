@@ -6,9 +6,11 @@ require_once('../../../../config.php');
 
 global $DB, $OUTPUT, $PAGE, $ME;
 
+echo '<!doctype html>';
+
 $PAGE->requires->css('/course/format/udehauthoring/authoring_tool.css');
 
-$sectionid = optional_param('id', 0, PARAM_INT); // This are required.
+$sectionid = optional_param('id', 0, PARAM_INT); // This is required.
 $sectionplan = \format_udehauthoring\model\section_plan::instance_by_id($sectionid);
 $courseplan =  \format_udehauthoring\model\course_plan::instance_by_id($sectionplan->audehcourseid);
 $evaluationplan =  \format_udehauthoring\model\evaluation_plan::instance_by_section_plan_id($sectionplan->id);
@@ -21,7 +23,7 @@ require_capability('format/udehauthoring:redact', $context);
 $isfrontpage = ($course->id == SITEID);
 
 if ($isfrontpage) {
-    print_error('errorcantredactfrontpage', 'format_udehauthoring');
+    throw new \moodle_exception('errorcantredactfrontpage', 'format_udehauthoring');
     exit;
 }
 
@@ -30,16 +32,20 @@ $PAGE->set_url('/course/format/udehauthoring/redact/section.php', ['id' => $sect
 $PAGE->set_title("$course->shortname: ".get_string('redactsectionshort', 'format_udehauthoring'));
 $PAGE->set_heading($course->fullname);
 
-$filemanageropts = array('subdirs' => 0, 'maxbytes' => '0', 'maxfiles' => 1, 'context' => $context);
-$form = new \format_udehauthoring\form\redact_section(null, array(
-    'section' => $sectionplan,
-    'evaluation_title' => $evaluationplan ? $evaluationplan->title : '',
-    'subquestioncount' => !$sectionplan || $sectionplan->subquestions == null ? 0 : count($sectionplan->subquestions),
-    'coursetitle' => $courseplan->title),
+$form = new \format_udehauthoring\form\redact_section(
+    null,
+    array(
+        'section' => $sectionplan,
+        'evaluation' => $evaluationplan,
+        'subquestioncount' => !$sectionplan || $sectionplan->subquestions == null ? 0 : count($sectionplan->subquestions),
+        'coursetitle' => $courseplan->title,
+        'courseid' => $courseplan->courseid
+    ),
     'post',
     '',
     ['class' => 'udeh-form',
-        'id' => 'udeh-form']);
+        'id' => 'udeh-form']
+);
 
 $form->set_data($sectionplan->to_form_data($context));
 
@@ -59,15 +65,17 @@ $PAGE->requires->js_call_amd('format_udehauthoring/notificationHelper', 'initNot
 
 echo \format_udehauthoring\utils::breadCrumb($courseplan);
 
-$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'exportCourse', array($courseplan->courseid));
-$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'publishCoursePlan', array(array($courseplan->id, $courseplan->courseid)));
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavigation', 'init');
+echo \format_udehauthoring\utils::mainMenu($courseplan, substr($ME, strrpos($ME, '/') + 1));
+
 $PAGE->requires->js_call_amd('format_udehauthoring/phpHelper', 'init',
     array(json_encode([
         'type' => 0,
         'courseId' => $courseplan->courseid,
         'sectionId' => $sectionid])));
-echo \format_udehauthoring\utils::mainMenu($courseplan, substr($ME, strrpos($ME, '/') + 1));
+
+echo \format_udehauthoring\titlesUtils::buildTitlesModal($courseplan->id);
+echo \format_udehauthoring\modalUtils::buildWarningModal();
 
 // find section index
 $ii = 0;
@@ -75,20 +83,32 @@ while ($courseplan->sections[$ii]->id != $sectionplan->id) {
     ++$ii;
 }
 if ($ii === count($courseplan->sections)) {
-    print_error('sectionmissing');
+    throw new \moodle_exception('sectionmissing');
 }
-$sectionindex = $ii + 1;
 
+if(count($courseplan->sections) > 0) {
+    if(count($courseplan->sections) === 1) {
+        $sectionindex = 0;
+    } else {
+        $sectionindex = $ii + 1;
+    }
+} else { $sectionindex = false; }
 
 $previewurl = utils::getPreviewUrl($course->id, $sectionindex);
-echo \format_udehauthoring\utils::navBar($courseplan->title, $courseplan->courseid, $previewurl);
+echo \format_udehauthoring\utils::navBar($courseplan->courseid, $previewurl);
+
 $PAGE->requires->js_call_amd('format_udehauthoring/mainNavBar', 'initNavBar');
 
 echo \format_udehauthoring\utils::mainProgress($courseplan);
 $PAGE->requires->js_call_amd('format_udehauthoring/mainProgress', 'init');
 
 $PAGE->requires->js_call_amd('format_udehauthoring/helper', 'exportCourse', array($courseplan->courseid));
-$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'publishCoursePlan', array(array($courseplan->id, $courseplan->courseid)));
+$PAGE->requires->js_call_amd(
+    'format_udehauthoring/helper',
+    'publishCoursePlan',
+    array(array($courseplan->id, $courseplan->courseid))
+);
+$PAGE->requires->js_call_amd('format_udehauthoring/helper', 'initSaveWarningModal');
 
 $form->display();
 

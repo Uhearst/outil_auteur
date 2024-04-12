@@ -1,291 +1,152 @@
 import {
+    buildHiddenInput,
     handleEmbed,
-    handleNewAccordionElement,
-    initTinyMce,
-    prepareAccordions,
+    initEditor,
     prepareActionButton,
-    // removeTags,
-    removeTinyMce
+    removeTinyEditor, setDeleteButton,
+    setEditorAfterCloning,
+    updateEditorAndLabel,
 } from "./utils";
-import {dictionnary} from "./language/format_udehauthoring_fr";
 import {validateEvaluationDataForm, validateEvaluationForm} from "./validator/evaluationValidator";
 import {initRedactTools} from "./toolHelper";
+import {get_string as getString} from 'core/str';
+import {handleAccordions, handleNewAccordion, initAccordionsAfterFillingForm} from "./accordionHandler";
 
+const editorFields = ['title', 'description'];
 let counterEvaluations = 0;
-let modules = [];
 let learningObjectives = [];
-
-class Module {
-    constructor(title, id) {
-        this.title = title;
-        this.id = id;
-    }
-}
 
 /**
  * @param {boolean} fromBtnClick
  */
-function addEvaluation(fromBtnClick) {
-    let x = buildEvaluation();
-    let container = document.getElementById('displayable-form-evaluations-container');
-    container.insertBefore(x, document.getElementById('evaluation-add-container'));
-    updateAddEvaluationButton();
+async function addEvaluation(fromBtnClick) {
+    counterEvaluations += 1;
+    let evaluationParent = document.querySelector('#row_course_evaluation_container_0');
+    let evaluation = evaluationParent.cloneNode(true);
+    evaluation.setAttribute('id', 'row_course_evaluation_container_' + counterEvaluations);
+
+    // Header
+    evaluation.querySelector('#course_evaluation_objectives_header_0')
+        .setAttribute('id', 'course_evaluation_objectives_header_' + counterEvaluations);
+    evaluation.querySelector('[href="#collapse_evaluation_0"]').innerText =
+        await getString('evaluation', 'format_udehauthoring') + ' ' + (counterEvaluations + 1);
+    evaluation.querySelector('[href="#collapse_evaluation_0"]')
+        .setAttribute('aria-controls', 'collapse_evaluation_' + counterEvaluations);
+    evaluation.querySelector('[href="#collapse_evaluation_0"]')
+        .setAttribute('href', '#collapse_evaluation_' + counterEvaluations);
+
+    evaluation.querySelector('#collapse_evaluation_0')
+        .setAttribute('id', 'collapse_evaluation_' + counterEvaluations);
+
+    evaluation.querySelector('#course_evaluation_content_0')
+        .setAttribute('id', 'course_evaluation_content_' + counterEvaluations);
+
+    if (evaluation.querySelector('[name="evaluation_0_id_value"]')) {
+        evaluation.querySelector('[name="evaluation_0_id_value"]').setAttribute('value', '');
+        evaluation.querySelector('[name="evaluation_0_id_value"]')
+            .setAttribute('name', 'evaluation_' + counterEvaluations + '_id_value');
+    }
+
+    // Content
+    editorFields.forEach(editorField => {
+        setEditorAfterCloning(evaluation, editorField, 'evaluation', counterEvaluations, null, fromBtnClick);
+    });
+
+    // Delete button
+    setDeleteButton(evaluation, 'remove_evaluation', counterEvaluations);
+
+    // Weight
+    let weight = evaluation.querySelector('#fitem_id_evaluation_weight_0');
+    weight.setAttribute('id', 'fitem_id_evaluation_weight_' + counterEvaluations);
+    weight.querySelector('[for="id_evaluation_weight_0"]')
+        .setAttribute('for', 'id_evaluation_weight_' + counterEvaluations);
+    weight.querySelector('#id_evaluation_weight_0')
+        .setAttribute('name', 'evaluation_weight_' + counterEvaluations);
+    weight.querySelector('#id_evaluation_weight_0').value = '';
+    weight.querySelector('#id_evaluation_weight_0')
+        .setAttribute('id', 'id_evaluation_weight_' + counterEvaluations);
+    weight.querySelector('#id_error_evaluation_weight_0')
+        .setAttribute('id', 'id_error_evaluation_weight_' + counterEvaluations);
+
+    // Learning objective and module
+    ['learning_objectives', 'module'].forEach(elm => {
+        let container = evaluation.querySelector('#fitem_id_evaluation_' + elm + '_0');
+        container.setAttribute('name', 'evaluation_' + elm + '_' + counterEvaluations);
+        container.setAttribute('id', 'fitem_id_evaluation_' + elm + '_' + counterEvaluations);
+        container.querySelector('#evaluation_' + elm + '_title_0')
+            .setAttribute('id', 'evaluation_' + elm + '_title_' + counterEvaluations);
+        container.querySelector('[for="fitem_id_evaluation_' + elm + '_0"]')
+            .setAttribute('for', 'fitem_id_evaluation_' + elm + '_' + counterEvaluations);
+
+        let checkboxes = container.querySelectorAll('.form-group.row');
+        checkboxes.forEach(objective => {
+            let hiddenInput = objective.querySelector('input[type="hidden"][name^="evaluation_' + elm + '_0"]');
+            hiddenInput.setAttribute(
+                'name',
+                hiddenInput.getAttribute('name').replace('0', counterEvaluations)
+            );
+            let input = objective.querySelector('input[type="checkbox"][name^="evaluation_' + elm + '_0"]');
+            input.setAttribute('name', input.getAttribute('name').replace('0', counterEvaluations));
+            input.setAttribute('id', input.getAttribute('id').replace('0', counterEvaluations));
+            input.checked = false;
+
+            let label = objective.querySelector('[for^="id_evaluation_' + elm + '_0_"]');
+            label.setAttribute('for', label.getAttribute('for').replace('0', counterEvaluations));
+        });
+    });
+
+    let container = document.querySelector('#displayable-form-evaluations-container');
+    container.insertBefore(evaluation, document.querySelector('#evaluation-add-container'));
+
     disableEvaluationDeleteButton();
-    initTinyMce('id_evaluation_title_' + counterEvaluations, 'superscript subscript | undo redo');
-    initTinyMce('id_evaluation_description_' + counterEvaluations,
-        ['formatselect bold italic | numlist bullist indent outdent | link unlink | emoticons image ',
-            // eslint-disable-next-line max-len
-            'underline strikethrough superscript subscript | alignleft aligncenter alignright | charmap table removeformat | undo redo ']);
-    getTooltips(counterEvaluations);
+    await updateAddEvaluationButton();
+
     if (fromBtnClick) {
-        handleNewAccordionElement(x);
+        handleNewAccordion('#course_evaluation_objectives_header_', counterEvaluations);
+        await handleEditor(counterEvaluations);
     }
 }
+
+const handleEditor = async(counter) => {
+    editorFields.forEach(editorField => {
+        window.$.ajax(
+            {
+                type: "POST",
+                url: "../handlers/ajax_editor_handler.php",
+                data: {
+                    id: document.querySelector("#udeh-form").querySelector('[name = "course_id"]').value,
+                    elementId: 'id_evaluation_' + editorField + '_' + counter,
+                    text: ''
+                },
+                success: function(response) {
+                    let draftIdElm = document.querySelector('#row_course_evaluation_container_' + counter)
+                        .querySelector('[name = "evaluation_' + editorField + '_' + counter + '[itemid]"]');
+                    initEditor(
+                        response,
+                        draftIdElm
+                    );
+                },
+                error: async function(e) {
+                    window.console.log(e);
+                }
+            });
+    });
+};
 
 /**
  * @param {string} index
  */
-function removeEvaluation(index) {
+async function removeEvaluation(index) {
     let evaluation = document.getElementById('row_course_evaluation_container_' + index);
-    removeTinyMce("id_evaluation_title_" + index);
-    removeTinyMce("id_evaluation_description_" + index);
-
+    for (const editorField of editorFields) {
+        await removeTinyEditor('id_section_' + editorField + '_' + index);
+    }
     evaluation.remove();
-    updateExistingEvaluations(index);
-    updateAddEvaluationButton();
+    await updateExistingEvaluations(index);
+    await updateAddEvaluationButton();
     disableEvaluationDeleteButton();
     updateRemoveEvaluationButton();
     counterEvaluations = counterEvaluations - 1;
-}
-
-/**
- *
- */
-function buildEvaluation() {
-    counterEvaluations = counterEvaluations + 1;
-    let rowEvaluationContainer = document.createElement("div");
-    let colEvaluationContainer = document.createElement("div");
-    let colButtonContainer = document.createElement("div");
-
-    rowEvaluationContainer.setAttribute('class', 'row row-container mb-3');
-    rowEvaluationContainer.setAttribute('id', 'row_course_evaluation_container_' + counterEvaluations);
-    colEvaluationContainer.setAttribute('class', 'col-11 accordion-container card');
-    colButtonContainer.setAttribute('class', 'col-1 remove_evaluation_action_button');
-
-    let header = buildEvaluationHeader();
-    let content = buildEvaluationContent();
-    colEvaluationContainer.appendChild(header);
-    colEvaluationContainer.appendChild(content);
-
-    let button = buildEvaluationButton();
-    colButtonContainer.appendChild(button);
-
-    rowEvaluationContainer.appendChild(colEvaluationContainer);
-    rowEvaluationContainer.appendChild(colButtonContainer);
-
-    return rowEvaluationContainer;
-}
-
-/**
- *
- */
-function buildEvaluationHeader() {
-    let headerContainer = document.createElement("div");
-    let linkForCollapseDiv = document.createElement('a');
-
-    headerContainer.setAttribute('class', 'accordion-header card-header');
-    headerContainer.setAttribute('id', 'course_evaluation_header_' + (counterEvaluations));
-
-    linkForCollapseDiv.setAttribute('data-toggle', 'collapse');
-    linkForCollapseDiv.setAttribute('href', '#collapse_evaluation_' + (counterEvaluations));
-    linkForCollapseDiv.setAttribute('role', 'button');
-    linkForCollapseDiv.setAttribute('aria-expanded', 'false');
-    linkForCollapseDiv.setAttribute('aria-controls', 'collapse_evaluation_' + (counterEvaluations));
-    linkForCollapseDiv.setAttribute('class', 'collapsed');
-    linkForCollapseDiv.innerHTML = 'Evaluation ' + (counterEvaluations + 1);
-
-    headerContainer.appendChild(linkForCollapseDiv);
-
-    return headerContainer;
-}
-
-/**
- *
- */
-function buildEvaluationContent() {
-    let contentContainer = document.createElement("div");
-    let collapseDiv = document.createElement("div");
-
-    collapseDiv.setAttribute('class', 'collapse');
-    collapseDiv.setAttribute('id', 'collapse_evaluation_' + (counterEvaluations));
-    collapseDiv.setAttribute('data-parent', '#displayable-form-evaluations-container');
-
-    contentContainer.setAttribute('class', 'card-body accordion-content');
-    contentContainer.setAttribute('id', 'course_evaluation_content_' + (counterEvaluations));
-
-    let title = buildEditorContainer('evaluation_title', dictionnary.evaluationTitle);
-    let description = buildEditorContainer('evaluation_description', dictionnary.evaluationDescription);
-    let weight = buildInputContainer('evaluation_weight', dictionnary.evaluationWeight);
-    let learningObjectivesList = buildCheckboxContainer('evaluation_learning_objectives',
-        dictionnary.associatedLearningObjective);
-    let module = buildSelectContainer();
-
-    contentContainer.appendChild(title);
-    contentContainer.appendChild(description);
-    contentContainer.appendChild(weight);
-    contentContainer.appendChild(learningObjectivesList);
-    contentContainer.appendChild(module);
-    collapseDiv.appendChild(contentContainer);
-
-    return collapseDiv;
-}
-
-/**
- * @param {string} id
- * @param {string} labelText
- */
-function buildEditorContainer(id, labelText) {
-    let fieldContainer = document.createElement("div");
-    let labelContainer = document.createElement("div");
-    let label = document.createElement("label");
-    let editorContainer = document.createElement("div");
-
-
-    fieldContainer.setAttribute('class', 'form-group row  fitem   tiny-editor');
-    fieldContainer.setAttribute('id', 'fitem_id_' + id + '_' + counterEvaluations);
-
-    labelContainer.setAttribute('class', 'col-md-3 col-form-label d-flex pb-0 pr-md-0');
-
-    label.setAttribute('class', 'd-inline word-break');
-    label.setAttribute('for', 'id_' + id + '_' + counterEvaluations);
-    label.innerHTML = labelText;
-
-    editorContainer.setAttribute('class', 'col-md-9 align-items-start felement');
-    editorContainer.setAttribute('data-fieldtype', 'editor');
-
-    let editor = buildTinyMCE(id, counterEvaluations);
-
-    editorContainer.appendChild(editor);
-    labelContainer.appendChild(label);
-
-    fieldContainer.appendChild(labelContainer);
-    fieldContainer.appendChild(editorContainer);
-
-    return fieldContainer;
-}
-
-/**
- * @param {string} id
- * @param {string} labelText
- */
-function buildInputContainer(id, labelText) {
-    let fieldContainer = document.createElement("div");
-    let labelContainer = document.createElement("div");
-    let label = document.createElement("label");
-    let inputContainer = document.createElement("div");
-    let input = document.createElement("input");
-
-
-    fieldContainer.setAttribute('class', 'form-group row  fitem   ');
-    fieldContainer.setAttribute('id', 'fitem_id_' + id + '_' + counterEvaluations);
-
-    labelContainer.setAttribute('class', 'col-md-3 col-form-label d-flex pb-0 pr-md-0');
-
-    label.setAttribute('class', 'd-inline word-break');
-    label.setAttribute('for', 'id_' + id + '_' + counterEvaluations);
-    label.innerHTML = labelText;
-
-    inputContainer.setAttribute('class', 'col-md-9 form-inline align-items-start felement');
-    inputContainer.setAttribute('data-fieldtype', 'text');
-
-    input.setAttribute('type', 'text');
-    input.setAttribute('class', 'form-control');
-    input.setAttribute('name', id + '_' + counterEvaluations);
-    input.setAttribute('id', 'id_' + id + '_' + counterEvaluations);
-
-    inputContainer.appendChild(input);
-    labelContainer.appendChild(label);
-
-    fieldContainer.appendChild(labelContainer);
-    fieldContainer.appendChild(inputContainer);
-
-    return fieldContainer;
-}
-
-/**
- * @param {string} id
- * @param {string} labelText
- */
-function buildCheckboxContainer(id, labelText) {
-    let fieldContainer = document.createElement("div");
-    let titleContainer = document.createElement("div");
-    let labelField = document.createElement("label");
-
-    fieldContainer.setAttribute('id', 'fitem_id_' + id + '_' + counterEvaluations);
-
-    titleContainer.setAttribute('id', 'evaluation_learning_objectives_title_' + counterEvaluations);
-    titleContainer.setAttribute('class', 'd-flex');
-
-    labelField.setAttribute('for', 'evaluation_learning_objectives_title_' + counterEvaluations);
-    labelField.setAttribute('class', 'd-inline word-break ml-3 eval-obj-title');
-    labelField.innerHTML = labelText;
-
-    titleContainer.appendChild(labelField);
-    fieldContainer.appendChild(titleContainer);
-
-    if (learningObjectives !== null && learningObjectives !== []) {
-        learningObjectives.forEach(function(parent, index) {
-            let element = null;
-            if(Array.isArray(parent)) {
-                element = parent;
-            } else {
-                element = parent.learningobjectives;
-            }
-            element.forEach(function(obj, subIndex) {
-                let labelContainer = document.createElement("div");
-                let subContainer = document.createElement("div");
-                let checkBoxContainer = document.createElement("div");
-                let checkBoxSubContainer = document.createElement("div");
-                let checkbox = document.createElement("input");
-                let hiddenCheckbox = document.createElement("input");
-                let labelCheckbox = document.createElement("label");
-
-                subContainer.setAttribute('class', 'form-group row  fitem  ');
-
-                labelContainer.setAttribute('class', 'col-md-3');
-                checkBoxContainer.setAttribute('class', 'col-md-9 checkbox');
-
-                checkBoxSubContainer.setAttribute('class', 'form-check d-flex');
-
-                hiddenCheckbox.setAttribute('type', 'hidden');
-                hiddenCheckbox.setAttribute('name', id + '_' + counterEvaluations + '[' + obj.id + ']');
-                hiddenCheckbox.setAttribute('value', '0');
-
-                checkbox.setAttribute('type', 'checkbox');
-                checkbox.setAttribute('class', 'form-check-input ');
-                checkbox.setAttribute('name', id + '_' + counterEvaluations + '[' + obj.id + ']');
-                checkbox.setAttribute('id', 'id_' + id + '_' + counterEvaluations + '_' + obj.id);
-                checkbox.setAttribute('value', '1');
-
-                labelCheckbox.setAttribute('for', 'id_' + id + '_' + counterEvaluations);
-                labelCheckbox.setAttribute('style', 'display: flex;');
-                labelCheckbox.innerHTML = '<span style="margin-right: 0.5rem;">' + (index + 1)
-                    + '.' + (subIndex + 1) + ' - ' + '</span>' + obj.learningobjective;
-
-                checkBoxSubContainer.appendChild(hiddenCheckbox);
-                checkBoxSubContainer.appendChild(checkbox);
-                checkBoxSubContainer.appendChild(labelCheckbox);
-                checkBoxContainer.appendChild(checkBoxSubContainer);
-
-                subContainer.appendChild(labelContainer);
-                subContainer.appendChild(checkBoxContainer);
-
-                fieldContainer.appendChild(subContainer);
-            });
-        });
-    }
-
-    return fieldContainer;
 }
 
 /**
@@ -296,93 +157,6 @@ function formatInitialObjList() {
     for (let i = 0; i < labels.length; i++) {
         labels[i].setAttribute('style', 'display:flex;');
     }
-}
-
-/**
- *
- */
-function buildSelectContainer() {
-    let fieldContainer = document.createElement("div");
-    let labelContainer = document.createElement('div');
-    let selectContainer = document.createElement('div');
-    let label = document.createElement('label');
-    let select = document.createElement('select');
-
-    fieldContainer.setAttribute('id', "fitem_id_evaluation_module_" + counterEvaluations);
-    fieldContainer.setAttribute('class', "form-group row  fitem   ");
-
-    labelContainer.setAttribute('class', "col-md-3 col-form-label d-flex pb-0 pr-md-0");
-
-    label.setAttribute('class', 'd-inline word-break ');
-    label.setAttribute('for', 'id_evaluation_module_' + counterEvaluations);
-    label.innerHTML = dictionnary.associatedModule;
-
-    selectContainer.setAttribute('class', 'col-md-9 form-inline align-items-start felement');
-    selectContainer.setAttribute('data-fieldtype', 'select');
-
-    select.setAttribute('class', 'custom-select');
-    select.setAttribute('name', 'evaluation_module_' + counterEvaluations);
-    select.setAttribute('id', 'id_evaluation_module_' + counterEvaluations);
-
-    modules.forEach(module => {
-        select.appendChild(buildOption(module));
-    });
-
-    labelContainer.appendChild(label);
-    selectContainer.appendChild(select);
-    fieldContainer.appendChild(labelContainer);
-    fieldContainer.appendChild(selectContainer);
-
-    return fieldContainer;
-}
-
-/**
- * @param {object} module
- */
-function buildOption(module) {
-    let option = document.createElement('option');
-    option.setAttribute('value', module.id);
-    option.innerHTML = module.title;
-    return option;
-}
-
-/**
- * @param {string} target
- * @param {string} evaluationIndex
- */
-function buildTinyMCE(target, evaluationIndex) {
-    let inputContainerDiv = document.createElement("textarea");
-    inputContainerDiv.setAttribute('class', 'custom-editor');
-    inputContainerDiv.setAttribute('id', 'id_' + target + '_' + evaluationIndex);
-    inputContainerDiv.setAttribute('name', target + '_' + evaluationIndex);
-    return inputContainerDiv;
-}
-
-/**
- *
- */
-function buildEvaluationButton() {
-    let rowEvaluationContainer = document.createElement("div");
-    let buttonContainer = document.createElement("div");
-    let buttonElement = document.createElement("button");
-    let icon = document.createElement("i");
-
-    rowEvaluationContainer.setAttribute('id', 'fitem_id_remove_evaluation_' + counterEvaluations);
-
-    buttonContainer.setAttribute('data-fieldtype', 'button');
-
-    buttonElement.setAttribute('class', 'btn ml-0');
-    buttonElement.setAttribute('name', 'remove_evaluation_' + counterEvaluations);
-    buttonElement.setAttribute('id', 'id_remove_evaluation_' + counterEvaluations);
-    buttonElement.setAttribute('type', 'button');
-
-    icon.setAttribute('class', 'remove-button-js fa fa-minus-circle fa-2x');
-
-    buttonElement.appendChild(icon);
-    buttonContainer.appendChild(buttonElement);
-    rowEvaluationContainer.appendChild(buttonContainer);
-
-    return rowEvaluationContainer;
 }
 
 /**
@@ -417,19 +191,19 @@ function updateRemoveEvaluationButton() {
 /**
  *
  */
-function updateAddEvaluationButton() {
+async function updateAddEvaluationButton() {
     let x = document.querySelectorAll('[id^="row_course_evaluation_container_"]');
     let addEvaluationButtonContainer = document.getElementById('evaluation-add-container');
     let addEvaluationButtonText = addEvaluationButtonContainer.querySelector('.add-text');
-    addEvaluationButtonText.innerHTML = dictionnary.evaluation + (x.length + 1);
+    addEvaluationButtonText.innerHTML = await getString('evaluation', 'format_udehauthoring') + ' ' + (x.length + 1);
 }
 
 /**
  * @param {string} index
  */
-function updateExistingEvaluations(index) {
+async function updateExistingEvaluations(index) {
     let evaluations = document.querySelectorAll('[id^="row_course_evaluation_container_"]');
-    evaluations.forEach(evaluation => {
+    for (const evaluation of evaluations) {
         if (parseInt(evaluation.id.substring(evaluation.id.lastIndexOf('_') + 1)) > parseInt(index)) {
             let currentIndex = parseInt(evaluation.id.substring(evaluation.id.lastIndexOf('_') + 1));
             evaluation.setAttribute('id', 'row_course_evaluation_container_' + (currentIndex - 1));
@@ -437,7 +211,7 @@ function updateExistingEvaluations(index) {
             header.setAttribute('id', 'course_evaluation_header_' + (currentIndex - 1));
             header.firstElementChild.setAttribute('href', '#collapse_evaluation_' + (currentIndex - 1));
             header.firstElementChild.setAttribute('aria-controls', 'collapse_evaluation_' + (currentIndex - 1));
-            header.firstElementChild.innerHTML = 'Evaluation ' + (currentIndex);
+            header.firstElementChild.innerHTML = await getString('evaluation', 'format_udehauthoring') + ' ' + (currentIndex);
 
 
             let collapsible = evaluation.querySelector('.collapse');
@@ -447,14 +221,11 @@ function updateExistingEvaluations(index) {
             updateExistingWeight(evaluation, currentIndex);
             updateExistingEvaluationObjectives(evaluation, currentIndex);
             updateExistingModules(evaluation, currentIndex);
-            updateEditorAndLabel(evaluation, currentIndex, 'title', 'superscript subscript | undo redo');
-            updateEditorAndLabel(evaluation, currentIndex, 'description',
-                ['formatselect bold italic | numlist bullist indent outdent | link unlink | emoticons image ',
-                    // eslint-disable-next-line max-len
-                    'underline strikethrough superscript subscript | alignleft aligncenter alignright | charmap table removeformat | undo redo ']);
-
+            await updateEditorAndLabel(evaluation, currentIndex, 'title', 'evaluation');
+            await updateEditorAndLabel(evaluation, currentIndex, 'description', 'evaluation');
+            await handleEditor((currentIndex - 1));
         }
-    });
+    }
 }
 
 /**
@@ -466,9 +237,6 @@ function updateExistingModules(evaluation, currentIndex) {
     moduleContainer.setAttribute('id', 'fitem_id_evaluation_module_' + (currentIndex - 1));
     let labelTitle = moduleContainer.querySelector('[for^="id_evaluation_module_"]');
     labelTitle.setAttribute('for', 'id_evaluation_module_' + (currentIndex - 1));
-    let select = moduleContainer.querySelector('.custom-select');
-    select.name = "evaluation_module_" + (currentIndex - 1);
-    select.id = "id_evaluation_module_" + (currentIndex - 1);
 }
 
 /**
@@ -508,74 +276,29 @@ function updateExistingWeight(evaluation, currentIndex) {
 
 /**
  * @param {object} evaluation
- * @param {string} currentIndex
- * @param {string} element
- * @param {string} toolbarOptions
- */
-function updateEditorAndLabel(evaluation, currentIndex, element, toolbarOptions) {
-    let titleContainer = evaluation.querySelector('[id^="fitem_id_evaluation_' + element + '_"]');
-    titleContainer.setAttribute('id', 'fitem_id_evaluation_' + element + '_' + (currentIndex - 1));
-    let labelTitle = titleContainer.querySelector('[for^="id_evaluation_' + element + '_"]');
-    labelTitle.setAttribute('for', 'id_evaluation_' + element + '_' + (currentIndex - 1));
-    removeTinyMce('id_evaluation_' + element + '_' + (currentIndex));
-    let editorTitle = titleContainer.querySelector('[id^="id_evaluation_' + element + '_"]');
-    editorTitle.setAttribute('id', 'id_evaluation_' + element + '_' + (currentIndex - 1));
-    editorTitle.setAttribute('name', 'evaluation_' + element + '_' + (currentIndex - 1));
-    initTinyMce('id_evaluation_' + element + '_' + (currentIndex - 1), toolbarOptions);
-}
-
-/**
- * @param {object} evaluation
  * @param {int} index
  */
 function fillFormCommonPart(evaluation, index) {
     let weight = document.getElementById('id_evaluation_weight_' + index);
     weight.value = evaluation.weight;
 
-    evaluation.learningobjectiveids.forEach(element=> {
+    evaluation.learningobjectiveids.forEach(element => {
 
         let learningObjectiveElement = document
             .getElementById('id_evaluation_learning_objectives_' + index + '_' + element.audehlearningobjectiveid);
-        if(learningObjectiveElement) {
+        if (learningObjectiveElement) {
             learningObjectiveElement.checked = true;
         }
 
-     });
+    });
 
-    let module = document.getElementById('id_evaluation_module_' + index);
-    module.value = evaluation.audehsectionid;
-}
-
-/**
- * @param {int} index
- */
-function getTooltips(index) {
-    const titleContainer = document.getElementById('fitem_id_evaluation_title_0');
-    const descriptionContainer = document.getElementById('fitem_id_evaluation_description_0');
-    const weightContainer = document.getElementById('fitem_id_evaluation_weight_0');
-    const evaluationObjContainer = document.getElementById('fitem_id_evaluation_learning_objectives_0');
-    const evaluationModuleContainer = document.getElementById('fitem_id_evaluation_module_0');
-
-    const titleToolTip = titleContainer.firstElementChild.children[1];
-    const descriptionToolTip = descriptionContainer.firstElementChild.children[1];
-    const weightToolTip = weightContainer.firstElementChild.children[1];
-    const evaluationObjToolTip = evaluationObjContainer.firstElementChild.children[1];
-    const evaluationModuleToolTip = evaluationModuleContainer.firstElementChild.children[1];
-
-    let titleToFillContainer = document.getElementById('fitem_id_evaluation_title_' + index);
-    titleToFillContainer.firstElementChild.appendChild(titleToolTip.cloneNode(true));
-
-    let descriptionToFillContainer = document.getElementById('fitem_id_evaluation_description_' + index);
-    descriptionToFillContainer.firstElementChild.appendChild(descriptionToolTip.cloneNode(true));
-
-    let weightToFillContainer = document.getElementById('fitem_id_evaluation_weight_' + index);
-    weightToFillContainer.firstElementChild.appendChild(weightToolTip.cloneNode(true));
-
-    let evaluationObjToFillContainer = document.getElementById('fitem_id_evaluation_learning_objectives_' + index);
-    evaluationObjToFillContainer.firstElementChild.appendChild(evaluationObjToolTip.cloneNode(true));
-
-    let evaluationModuleToFillContainer = document.getElementById('fitem_id_evaluation_module_' + index);
-    evaluationModuleToFillContainer.firstElementChild.appendChild(evaluationModuleToolTip.cloneNode(true));
+    if (evaluation.audehsectionids) {
+        for (const prop in evaluation.audehsectionids) {
+            if (document.getElementById('id_evaluation_module_' + index + '_' + prop)) {
+                document.getElementById('id_evaluation_module_' + index + '_' + prop).checked = true;
+            }
+        }
+    }
 }
 
 /**
@@ -584,45 +307,14 @@ function getTooltips(index) {
 function placeLearningObjectivesTooltip() {
     let initialContainer = document.getElementById('fitem_id_evaluation_learning_objectives_0');
     let rows = initialContainer.querySelectorAll('.form-group');
-    let tooltipContainer = rows[rows.length - 1].children[1].firstElementChild.getElementsByTagName('div');
-    if (tooltipContainer[0]) {
-        let headerContainer = document.getElementById('evaluation_learning_objectives_title_0');
-        headerContainer.appendChild(tooltipContainer[0]);
-    }
-}
+    if (typeof rows[rows.length - 1] !== 'undefined') {
+        let tooltipContainer = rows[rows.length - 1].children[1].firstElementChild.getElementsByTagName('div');
 
-/**
- * @param {int} id
- * @param {int} counter
- */
-function buildIdHiddenInput(id, counter) {
-    let input = document.createElement("input");
-    input.setAttribute('name', 'evaluation_' + (counter) + '_id_value');
-    input.setAttribute('value', id);
-    input.hidden = true;
-
-    let element = document.getElementById('fitem_id_evaluation_title_' + (counter));
-    element.parentNode.insertBefore(input, element);
-}
-
-/**
- * @param {string} id
- * @param {int} type
- * @param {object} toAppend
- */
-function waitWithInterval(id, type, toAppend) {
-    let element = null;
-    let timereditable = setInterval(function() {
-        element = document.getElementById(id);
-        if (element !== null) {
-            if (type === 0) {
-                element.innerHTML = toAppend;
-            } else {
-                element.value = toAppend;
-            }
-            clearInterval(timereditable);
+        if (tooltipContainer[0]) {
+            let headerContainer = document.getElementById('evaluation_learning_objectives_title_0');
+            headerContainer.appendChild(tooltipContainer[0]);
         }
-    }, 100);
+    }
 }
 
 /**
@@ -633,7 +325,7 @@ export function initEvaluations() {
     formatInitialObjList();
 
     const formContainer = document.getElementById('form_container');
-    formContainer.addEventListener('click', event => {
+    formContainer.addEventListener('click', async event => {
         const isButton = event.target.nodeName === 'BUTTON'
             || (event.target.nodeName === 'I' && event.target.parentNode && event.target.parentNode.nodeName === 'BUTTON');
         if (!isButton) {
@@ -648,7 +340,8 @@ export function initEvaluations() {
             if (element && element.id.includes('evaluation') && element.hidden === false) {
                 if (element.id.includes('remove')) {
                     let id = element.id.substring(element.id.lastIndexOf('_') + 1);
-                    removeEvaluation(id);
+                    await removeEvaluation(id);
+                    document.getElementById('udeh-form').dataset.changed = 'true';
                     event.stopImmediatePropagation();
                 }
             } else {
@@ -657,7 +350,7 @@ export function initEvaluations() {
         }
     });
     let addButton = document.querySelector('#id_add_evaluation');
-    addButton.addEventListener('click', event => {
+    addButton.addEventListener('click', async event => {
         const isButton = event.target.nodeName === 'BUTTON'
             || (event.target.nodeName === 'I' && event.target.parentNode && event.target.parentNode.nodeName === 'BUTTON');
         if (!isButton) {
@@ -671,14 +364,15 @@ export function initEvaluations() {
                 element = event.target;
             }
             if (element && element.id.includes('evaluation') && element.hidden === false) {
-                addEvaluation(true);
+                await addEvaluation(true);
+                document.getElementById('udeh-form').dataset.changed = 'true';
             } else {
                 return;
             }
         }
     });
     let addingButtonsContainer = document.
-    querySelectorAll("[class='col-md-9 form-inline align-items-start felement']");
+        querySelectorAll("[class='col-md-9 form-inline align-items-start felement']");
     if (addingButtonsContainer) {
         addingButtonsContainer.forEach(function(addingButtonContainer) {
             if (addingButtonContainer.dataset.fieldtype === 'button') {
@@ -703,47 +397,42 @@ export function initEvaluations() {
         });
     }
     disableEvaluationDeleteButton();
-    prepareAccordions('row_course_evaluation_container_');
+    // prepareAccordions('row_course_evaluation_container_');
     placeLearningObjectivesTooltip();
     formatInitialObjList();
 }
 
 /**
  * @param {array} evaluations
- * @param {array} moduleslist
  * @param {array} objList
  */
-export function fillFormEvaluations(evaluations, moduleslist, objList) {
-    modules = moduleslist;
-    modules.push(new Module('Aucun', 0));
+export async function fillFormEvaluations(evaluations, objList) {
     handleObjList(objList);
-    evaluations.forEach(function(evaluation, i) {
+    for (const evaluation of evaluations) {
+        const i = evaluations.indexOf(evaluation);
         if (i === 0) {
-            waitWithInterval('id_evaluation_title_0editable', 0, evaluation.title);
-            waitWithInterval('id_evaluation_title_0', 1, evaluation.title);
-
-            waitWithInterval('id_evaluation_description_0editable', 0, evaluation.description);
-            waitWithInterval('id_evaluation_description_0', 1, evaluation.description);
-
+            buildHiddenInput(evaluation.id, i, 'fitem_id_evaluation_title_' + (i), 'evaluation_');
+            document.querySelector('[name = "evaluation_0_id_value"]').setAttribute('value', evaluation.id);
         } else {
             if (document.getElementById('id_evaluation_title_' + i) === null) {
-                addEvaluation(false);
+                await addEvaluation(false);
             }
-            let title = document.getElementById('id_evaluation_title_' + i);
-            title.value = evaluation.title;
-
-            let description = document.getElementById('id_evaluation_description_' + i);
-            description.value = evaluation.description;
-
+            editorFields.forEach(editorField => {
+                document.querySelector('#id_evaluation_' + editorField + '_' + i).value = evaluation[editorField];
+            });
+            document.querySelector('[name = "evaluation_' + i + '_id_value"]')
+                .setAttribute('value', evaluation.id);
+            await handleEditor(i);
         }
         fillFormCommonPart(evaluation, i);
-        buildIdHiddenInput(evaluation.id, i);
-    });
+    }
     prepareActionButton([
         {type: 0, id: 'evaluation_0'},
         {type: 1, id: 'evaluation'}]);
     disableEvaluationDeleteButton();
-    prepareAccordions('row_course_evaluation_container_');
+    styleCheckbox();
+    initAccordionsAfterFillingForm();
+    handleAccordions();
 }
 
 /**
@@ -755,6 +444,13 @@ function handleObjList(objList) {
         learningObjectives.push(teachingObj.learningobjectives);
     });
 }
+
+const styleCheckbox = () => {
+    let checkboxes = document.querySelectorAll('[class~="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.querySelector('label').classList.add(['pr-5'], ['w-100']);
+    });
+};
 
 /**
  * @param {string} evalName

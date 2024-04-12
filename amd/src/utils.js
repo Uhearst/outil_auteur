@@ -1,29 +1,90 @@
-import {dictionnary} from "./language/format_udehauthoring_fr";
+/* eslint-disable max-len */
+import {get_string as getString} from 'core/str';
+import * as Config from 'core/config';
 
-let tryCounter = 0;
+// let tryCounter = 0;
+let tinyMCEPromise;
 
-/**
- * @param {string} id
- * @param {string} toolBarOptions
- */
-export function initTinyMce(id, toolBarOptions) {
-    window.tinymce.init({
-        selector: 'textarea#' + id,
-        menubar: false,
-        plugins: 'lists image table link charmap emoticons',
-        toolbar: toolBarOptions,
-        branding: false,
-        min_height: 160,
-        height: 160
+export const initEditor = (response, draftIdElm) => {
+    let parsedResponse = JSON.parse(response);
+    draftIdElm.setAttribute('value', JSON.parse(parsedResponse.data.config).draftitemid);
+    let footers = document.querySelector('footer').querySelectorAll('.footer-section');
+    footers.forEach(footer => {
+        let scripts = footer.querySelectorAll('script');
+        if (scripts.length !== 0) {
+            let inlineDefaultConfiguration = document.createElement('script');
+            inlineDefaultConfiguration.text =
+                "M.util.js_pending('editor_tiny/editor:defaultConfiguration'); " +
+                "require(['editor_tiny/editor'], (Tiny) => { " +
+                "Tiny.configureDefaultEditor(" + parsedResponse.data.editorDefaultConfig + "); " +
+                "M.util.js_complete('editor_tiny/editor:defaultConfiguration'); " +
+                "});";
+            footer.appendChild(inlineDefaultConfiguration);
+
+            let inlineScript = document.createElement('script');
+            inlineScript.text =
+                "M.util.js_pending('editor_tiny/editor'); " +
+                "require(['editor_tiny/editor'], (Tiny) => { " +
+                "Tiny.setupForElementId({ " +
+                "elementId: \"" + parsedResponse.data.elementId + "\", " +
+                "options: " + parsedResponse.data.config + "" +
+                "}); " +
+                "M.util.js_complete('editor_tiny/editor');" +
+                "});";
+            footer.appendChild(inlineScript);
+        }
     });
-}
+};
 
 /**
  * @param {string} id
  */
-export function removeTinyMce(id) {
-    window.tinymce.remove('#' + id);
+export async function removeTinyEditor(id) {
+    const tinyMCE = await getTinyMCE();
+    tinyMCE.get()
+        .filter(
+            (editor) => editor.id === id
+        )
+        .forEach(
+            (editor) => {
+                editor.remove();
+            }
+        );
 }
+
+const getTinyMCE = () => {
+
+    const baseUrl = `${Config.wwwroot}/lib/editor/tiny/loader.php/${M.cfg.jsrev}`;
+
+    if (tinyMCEPromise) {
+        return tinyMCEPromise;
+    }
+
+    tinyMCEPromise = new Promise((resolve, reject) => {
+        const head = document.querySelector('head');
+        let script = head.querySelector('script[data-tinymce="tinymce"]');
+        if (script) {
+            resolve(window.tinyMCE);
+        }
+
+        script = document.createElement('script');
+        script.dataset.tinymce = 'tinymce';
+        script.src = `${baseUrl}/tinymce.js`;
+        script.async = true;
+
+        script.addEventListener('load', () => {
+            resolve(window.tinyMCE);
+        }, false);
+
+        script.addEventListener('error', (err) => {
+            reject(err);
+        }, false);
+
+        head.append(script);
+    });
+
+    return tinyMCEPromise;
+};
 
 /**
  * @param {String} str
@@ -34,7 +95,7 @@ export function removeTags(str) {
     } else {
         str = str.toString();
     }
-
+    str = str.replace(/<div class="h5p-placeholder"[^>]*>([\s\S]*?)<\/div>/, '');
     return str.replace(/(<([^>]+)>)/ig, '');
 }
 
@@ -43,7 +104,7 @@ export function removeTags(str) {
  */
 export function prepareActionButton(buttons) {
     let addingButtonsContainer = document.
-    querySelectorAll("[class='col-md-9 form-inline align-items-start felement']");
+        querySelectorAll("[class='col-md-9 form-inline align-items-start felement']");
     if (addingButtonsContainer) {
         addingButtonsContainer.forEach(function(addingButtonContainer) {
             if (addingButtonContainer.dataset.fieldtype === 'button') {
@@ -84,62 +145,6 @@ export function prepareActionButton(buttons) {
 }
 
 /**
- * @param {string} currentIdContainer
- * @param {int} isObj
- */
-export function prepareAccordions(currentIdContainer, isObj = 0) {
-    let elements = null;
-    if (isObj === 1) {
-        elements = document.querySelectorAll('[class="row row-container mb-3"]');
-    } else if (isObj === 2) {
-        elements = document.querySelectorAll('[class="row row-container-child mb-3"]');
-    } else {
-        elements = document.querySelectorAll('[id^=' + currentIdContainer + ']');
-    }
-    elements.forEach(element => {
-        window.$(document).ready(function() {
-            window.$('#' + element.firstElementChild.children[1].id).on('shown.bs.collapse', function(event) {
-                event.stopPropagation();
-                let $card = window.$(this).closest('.card');
-                window.$('html,body').animate({
-                    scrollTop: $card.offset().top - 100
-                }, 250);
-            });
-        });
-    });
-}
-
-/**
- * @param {Object} element
- */
-export function handleNewAccordionElement(element) {
-    tryCounter = tryCounter + 1;
-    window.$(document).ready(function() {
-        let collapsibleId = element.firstElementChild.children[1].getAttribute('id');
-        try {
-            window.$('#' + collapsibleId).collapse('toggle');
-            window.$('#' + collapsibleId).on('shown.bs.collapse', function() {
-                let $card = window.$(this).closest('.card');
-                window.$('html,body').animate({
-                    scrollTop: $card.offset().top - 100
-                }, 250);
-            });
-        } catch (e) {
-            if (tryCounter > 20) {
-                window.console.error('New accordeons can\'t be handled, contact a dev.');
-                window.console.error('Error detail: ' + e);
-            } else {
-                window.console.log('got error handling new accordeon, will retry');
-                let interval = setInterval(function() {
-                    handleNewAccordionElement(element);
-                    clearInterval(interval);
-                }, 100);
-            }
-        }
-    });
-}
-
-/**
  *
  */
 export function formatEditorAndFileManager() {
@@ -148,11 +153,26 @@ export function formatEditorAndFileManager() {
     inputs.forEach(input => {
         if (input.children[1] && input.children[1].dataset
             && (input.children[1].dataset.fieldtype === 'editor' || input.children[1].dataset.fieldtype === 'filemanager')) {
-            input.classList.add('inline-element');
-            input.children[1].classList.add('inline-inner-element');
+            removeUselessColClasses(input.children[0]);
+            removeUselessColClasses(input.children[1]);
+            input.classList.add('mx-2');
+            let label = input.querySelector('label');
+            if (label) {
+                label.classList.replace('m-0', 'm-1');
+            }
         }
     });
 }
+
+const removeUselessColClasses = (node) => {
+    Array.from(node.classList).forEach(className => {
+        if (className.startsWith('col-') && !className.startsWith('col-form')) {
+            node.classList.remove(className);
+        }
+    });
+
+    node.classList.add('col-12');
+};
 
 
 /**
@@ -176,7 +196,7 @@ export function appendAnchorToForm(anchor) {
 /**
  *
  */
-export function getAndSetScrollPosition() {
+/*export function getAndSetScrollPosition() {
     let addedType = localStorage.getItem("added-type");
     if (addedType !== null && addedType !== 'null' && addedType !== undefined) {
         if (document.readyState !== 'loading') {
@@ -197,9 +217,9 @@ export function getAndSetScrollPosition() {
     });
 }
 
-/**
+/!**
  * @param {string} addedType
- */
+ *!/
 function toggleAccordionFromPhpAddition(addedType) {
     let container = null;
     let rows = null;
@@ -214,19 +234,19 @@ function toggleAccordionFromPhpAddition(addedType) {
     waitForAccordionIdWithInterval(rows[rows.length - 1]);
 }
 
-/**
+/!**
  * @param {object} currentElement
- */
+ *!/
 function waitForAccordionIdWithInterval(currentElement) {
     let elementId = null;
     let interval = setInterval(function() {
         elementId = currentElement.firstElementChild.children[1].getAttribute('id');
         if (elementId.includes('_')) {
-            handleNewAccordionElement(currentElement);
+            handleAccordions(currentElement);
             clearInterval(interval);
         }
     }, 100);
-}
+}*/
 
 /**
  * @param {String} id
@@ -258,9 +278,9 @@ function updateIcon(element, previousValue, newValue, isActive = false) {
         element.setAttribute('onmouseout', 'this.firstElementChild.firstElementChild.setAttribute("src", "' + newSrc + '")');
     }
     if (isActive) {
-        element.firstElementChild.setAttribute('class', 'active');
+        element.firstElementChild.setAttribute('class', 'active router');
     } else {
-        element.firstElementChild.removeAttribute('class');
+        element.firstElementChild.setAttribute('class', 'router');
     }
 }
 
@@ -279,8 +299,18 @@ export function appendSizeToFileManager() {
                     valueForFormat = '364 x 215';
                 }
                 let restrictions = fileManager.querySelector('.fp-restrictions');
-                restrictions.firstElementChild.innerHTML =
-                    restrictions.firstElementChild.innerHTML + ', ' + dictionnary.recommendedFormat + valueForFormat;
+                getString('evaluationrecommendedformat', 'format_udehauthoring')
+                    .then(
+                        (valueString) => {
+                            restrictions.firstElementChild.innerHTML =
+                                restrictions.firstElementChild.innerHTML + ', ' + valueString + valueForFormat;
+                        }
+                    )
+                    .catch(() => {
+                        restrictions.firstElementChild.innerHTML =
+                            restrictions.firstElementChild.innerHTML + ', Format recommandé: ' + valueForFormat;
+                    });
+
             }
         });
     }
@@ -328,3 +358,156 @@ function setEmbedVisible(customCheckbox, embedContainerId, introductionContainer
         introductionContainer.style = '';
     }
 }
+
+/**
+ * @param {int|string} id
+ * @param {int|string} counter
+ * @param {string} elementName
+ * @param {string} prefix
+ */
+export function buildHiddenInput(id, counter, elementName, prefix) {
+    let element = document.getElementById(elementName);
+    let parent = element.parentNode;
+    let idValue = parent.querySelectorAll('[name="' + prefix + (counter) + '_id_value"]');
+    if (idValue.length === 0) {
+        let input = document.createElement("input");
+        input.setAttribute('name', prefix + (counter) + '_id_value');
+        input.setAttribute('value', id);
+        input.hidden = true;
+        parent.insertBefore(input, element);
+    }
+}
+
+export const setEditorAfterCloning = (editorContainer, field, prefix, counter, parentUpdatedField = null, fromBtnClick = false) => {
+
+    // Container
+    editorContainer.querySelector('#fitem_id_' + prefix + '_' + field + '_0')
+        .setAttribute(
+            'id',
+            parentUpdatedField
+                ? 'fitem_id_' + prefix + '_' + parentUpdatedField + '_' + counter
+                : 'fitem_id_' + prefix + '_' + field + '_' + counter
+        );
+
+    // Label
+    if (editorContainer.querySelector('[for="id_' + prefix + '_' + field + '_0"]')) {
+        editorContainer.querySelector('[for="id_' + prefix + '_' + field + '_0"]')
+            .setAttribute('for', 'id_' + prefix + '_' + field + '_' + counter);
+    }
+
+    let textEvalParentNode = editorContainer.querySelector('#id_' + prefix + '_' + field + '_0').parentNode;
+
+    // Textarea, need to remove hidden elements from cloning
+    if (fromBtnClick || (textEvalParentNode && textEvalParentNode.querySelector('[role="application"]') !== null)) {
+
+        if (textEvalParentNode.querySelector('[role="application"]') !== null) {
+            textEvalParentNode.querySelector('[role="application"]').remove();
+        }
+
+        if (textEvalParentNode.querySelector('.tox-tinymce-aux') !== null) {
+            textEvalParentNode.querySelector('.tox-tinymce-aux').remove();
+        }
+    }
+
+    editorContainer.querySelector('#id_' + prefix + '_' + field + '_0').setAttribute('style', '');
+    editorContainer.querySelector('#id_' + prefix + '_' + field + '_0').value = '';
+
+    editorContainer.querySelector('#id_' + prefix + '_' + field + '_0')
+        .setAttribute(
+            'name',
+            parentUpdatedField
+                ? prefix + '_' + parentUpdatedField + '_' + counter + '[text]'
+                : prefix + '_' + field + '_' + counter + '[text]'
+        );
+
+    editorContainer.querySelector('#id_' + prefix + '_' + field + '_0')
+        .setAttribute(
+            'id',
+            parentUpdatedField
+                ? 'id_' + prefix + '_' + parentUpdatedField + '_' + counter
+                : 'id_' + prefix + '_' + field + '_' + counter
+        );
+
+    // Format
+    editorContainer.querySelector('#menu' + prefix + '_' + field + '_0format')
+        .setAttribute(
+            'name',
+            parentUpdatedField
+                ? prefix + '_' + parentUpdatedField + '_' + counter + '[format]'
+                : prefix + '_' + field + '_' + counter + '[format]'
+        );
+
+    editorContainer.querySelector('#menu' + prefix + '_' + field + '_0format')
+        .setAttribute(
+            'id',
+            parentUpdatedField
+                ? 'menu' + prefix + '_' + field + '_' + counter + 'format'
+                : 'menu' + prefix + '_' + parentUpdatedField + '_' + counter + 'format'
+        );
+
+    // Itemid
+    editorContainer.querySelector('[name="' + prefix + '_' + field + '_0[itemid]"').setAttribute('value', '');
+    editorContainer.querySelector('[name="' + prefix + '_' + field + '_0[itemid]"')
+        .setAttribute(
+            'name',
+            parentUpdatedField
+                ? prefix + '_' + parentUpdatedField + '_' + counter + '[itemid]'
+                : prefix + '_' + field + '_' + counter + '[itemid]'
+        );
+
+    // Error
+    editorContainer.querySelector('#id_error_' + prefix + '_' + field + '_0')
+        .setAttribute(
+            'id',
+            parentUpdatedField
+                ? 'id_error_' + prefix + '_' + parentUpdatedField + '_' + counter
+                : 'id_error_' + prefix + '_' + field + '_' + counter
+        );
+};
+
+export const setDeleteButton = (container, elm, counter, subCounter = '') => {
+    let baseSubCounter = subCounter === '' ? '' : '_0';
+
+    container.querySelector('#fitem_id_' + elm + '_0' + baseSubCounter)
+        .setAttribute('id', 'fitem_id_' + elm + '_' + counter + subCounter);
+    container.querySelector('[name="' + elm + '_0' + baseSubCounter + '"]')
+        .setAttribute('id', 'id_' + elm + '_' + counter + subCounter);
+    container.querySelector('[name="' + elm + '_0' + baseSubCounter + '"]')
+        .setAttribute('name', elm + '_' + counter + subCounter);
+    container.querySelector('#id_error_' + elm + '_0' + baseSubCounter)
+        .setAttribute('id', 'id_error_' + elm + '_' + counter + subCounter);
+};
+
+/**
+ * @param {object} elm
+ * @param {int} currentIndex
+ * @param {string} element
+ * @param {string} prefix
+ */
+export const updateEditorAndLabel = async(elm, currentIndex, element, prefix) => {
+    let container = elm.querySelector('[id^="fitem_id_' + prefix + '_' + element + '_"]');
+    container.setAttribute('id', 'fitem_id_' + prefix + '_' + element + '_' + (currentIndex - 1));
+
+    let containerLabel = container.querySelector('[for^="id_' + prefix + '_' + element + '_"]');
+    if (containerLabel) {
+        containerLabel.setAttribute('for', 'id_' + prefix + '_' + element + '_' + (currentIndex - 1));
+    }
+
+    await removeTinyEditor('id_' + prefix + '_' + element + '_' + currentIndex);
+
+    let editorTextArea = container.querySelector('[id^="id_' + prefix + '_' + element + '_"]');
+    editorTextArea.setAttribute('id', 'id_' + prefix + '_' + element + '_' + (currentIndex - 1));
+    editorTextArea.setAttribute('name', prefix + '_' + element + '_' + (currentIndex - 1) + '[text]');
+
+    let editorFormat = container.querySelector('[name="' + prefix + '_' + element + '_' + currentIndex + '[format]"]');
+    editorFormat.setAttribute('id', 'menu' + prefix + '_' + element + '_' + (currentIndex - 1) + 'format');
+    editorFormat.setAttribute('name', prefix + '_' + element + '_' + (currentIndex - 1) + '[format]');
+
+    container
+        .querySelector('[name="' + prefix + '_' + element + '_' + currentIndex + '[itemid]"]')
+        .setAttribute('name', prefix + '_' + element + '_' + (currentIndex - 1) + '[itemid]');
+
+    container
+        .querySelector('#id_error_' + prefix + '_' + element + '_' + currentIndex)
+        .setAttribute('id', 'id_error_' + prefix + '_' + element + '_' + (currentIndex - 1));
+};

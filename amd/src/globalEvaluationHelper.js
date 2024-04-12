@@ -1,16 +1,19 @@
 import {formatEditorAndFileManager, handleEmbed, removeTags} from "./utils";
 import {validateEvaluationDataForm} from "./validator/evaluationValidator";
 import {initRedactTools} from "./toolHelper";
+import {get_string as getString} from 'core/str';
+import {handleAccordions, initAccordionsAfterFillingForm} from "./accordionHandler";
 
 /**
  * @param {array} gloablevaluationplans
  */
-export function initGlobalEvaluations(gloablevaluationplans) {
+export async function initGlobalEvaluations(gloablevaluationplans) {
     const decodedParams = JSON.parse(gloablevaluationplans);
     let addButton = document.getElementById('id_add_global_evaluation');
     addButton.hidden = true;
     let accordions = document.querySelectorAll('[class*="single-accordion-container"]');
-    accordions.forEach(function(accordion, i) {
+    for (let i = 0; i < accordions.length; i++) {
+        const accordion = accordions[i];
         let headerLink = accordion.firstElementChild.firstElementChild;
         headerLink.href = '#collapseGlobalEvaluation' + (i);
         headerLink.setAttribute('aria-controls', 'collapseGlobalEvaluation' + (i));
@@ -20,12 +23,13 @@ export function initGlobalEvaluations(gloablevaluationplans) {
             headerLink.setAttribute('aria-expanded', 'false');
             headerLink.setAttribute('class', 'collapsed');
         }
+        let globalEvalTranslation = await getString('globalevaluation', 'format_udehauthoring');
         if (decodedParams[i].title) {
             let title = decodedParams[i].title;
-            let headerContent = 'Evaluation Globale' + ' ' + (i + 1) + ' - ' + removeTags(title);
+            let headerContent = globalEvalTranslation + ' ' + (i + 1) + ' - ' + removeTags(title);
             headerLink.innerHTML = headerContent.length > 70 ? headerContent.substring(0, 70) + '...' : headerContent;
         } else {
-            headerLink.innerHTML = 'Evaluation Globale' + ' ' + (i + 1);
+            headerLink.innerHTML = globalEvalTranslation + ' ' + (i + 1);
         }
 
         let currentEmbedSelector = accordion.querySelector('[class*="custom-switch"]');
@@ -91,10 +95,12 @@ export function initGlobalEvaluations(gloablevaluationplans) {
             }
         }
 
-    });
+    }
     formatEditorAndFileManager();
     initPhpGlobalEvaluationValidation(decodedParams);
     initRedactTools(2, decodedParams.map(value => value.toolname));
+    handleAccordions();
+    initAccordionsAfterFillingForm();
 }
 
 /**

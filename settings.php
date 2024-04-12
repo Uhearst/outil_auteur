@@ -290,7 +290,7 @@ if ($ADMIN->fulltree && strpos($GLOBALS['FULLME'], 'formatsettingudehauthoring')
         'Aide lieu de l\'activité.',
         'Texte affiché dans l\'infobulle lieu de l\'activité.',
         null));
-    $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_explorationgrouping_help',
+    $settings->add(new format_udehauthoring_admin_setting_tooltipcontent('udeh_explorationparty_help',
         'Aide groupement de l\'activité.',
         'Texte affiché dans l\'infobulle groupement de l\'activité.',
         null));

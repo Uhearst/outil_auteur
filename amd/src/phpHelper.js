@@ -1,7 +1,10 @@
-import {appendSizeToFileManager, formatEditorAndFileManager, getAndSetScrollPosition, handleEmbed, removeTags} from "./utils";
-import {initRedactTools} from "./toolHelper";
-import {dictionnary} from "./language/format_udehauthoring_fr";
-import {validateSectionForm} from "./validator/sectionValidator";
+/* eslint-disable no-undef */
+import { appendSizeToFileManager, formatEditorAndFileManager, handleEmbed, removeTags } from "./utils";
+import { initRedactTools } from "./toolHelper";
+import { validateSectionForm } from "./validator/sectionValidator";
+import {validateSubquestionForm} from "./validator/validateSubquestionForm";
+import {get_string as getString} from 'core/str';
+import {handleAccordions, initAccordionsAfterFillingForm} from "./accordionHandler";
 
 let counterElement = 0;
 let counterSubElement = 0;
@@ -12,9 +15,9 @@ let subElementsName = null;
 /**
  * @param {array} params
  */
-export function init(params) {
+export async function init(params) {
    const decodedParams = JSON.parse(params);
-   setElementNameByType(decodedParams.type);
+   await setElementNameByType(decodedParams.type);
    handleInit(decodedParams.courseId,
        decodedParams.sectionId,
        decodedParams.subQuestionId,
@@ -23,8 +26,10 @@ export function init(params) {
    updateAddButtonStyle();
    updateRemoveButtonStyle(decodedParams.sectionId !== null, decodedParams.subQuestionId !== null);
    formatEditorAndFileManager();
-   getAndSetScrollPosition();
    appendSizeToFileManager();
+   handleAccordions(false);
+   initAccordionsAfterFillingForm();
+   window.$('#udeh-form').prop('action', window.$('#udeh-form').prop('action') + '?id=' + decodedParams.sectionId);
 }
 
 /**
@@ -38,13 +43,17 @@ function handleModuleEmbedAndValidation() {
 /**
  * @param {int} type
  */
-function setElementNameByType(type) {
+async function setElementNameByType(type) {
    if (type === 0) {
-      elementName = dictionnary.module;
-      subElementsName = [dictionnary.trame];
+      elementName = await getString('section', 'format_udehauthoring');
+      subElementsName = [await getString('subquestion', 'format_udehauthoring')];
    } else {
-      elementName = dictionnary.trame;
-      subElementsName = [dictionnary.activity, dictionnary.resource];
+      elementName = await getString('subquestion', 'format_udehauthoring');
+      subElementsName =
+          [
+              await getString('exploration', 'format_udehauthoring'),
+              await getString('resource', 'format_udehauthoring')
+          ];
    }
 }
 
@@ -58,59 +67,60 @@ function setElementNameByType(type) {
 function handleInit(courseId, sectionId, subQuestionId, type, toolList) {
    if (type === 0) {
       window.$.ajax(
-          {
-             type: "POST",
-             url: "../handlers/ajax_module_handler.php",
-             data: {
-                courseId: courseId
-             },
-             success: function(response) {
-                let parsedResponse = JSON.parse(response);
-                parsedResponse.data.forEach(function(module, i) {
-                   if (parseInt(module.id) === sectionId) {
-                      element = module;
-                      counterElement = i;
-                   }
-                });
-                updatePreviewHeader(false);
-                subElementsName.forEach(subElementName => {
-                   updateCurrentAccordions(subElementName);
-                });
-             },
-             error: function() {
-                window.console.log('failure');
-             }
-          });
+         {
+            type: "POST",
+            url: "../handlers/ajax_module_handler.php",
+            data: {
+               courseId: courseId
+            },
+            success: function (response) {
+               let parsedResponse = JSON.parse(response);
+               parsedResponse.data.forEach(function (module, i) {
+                  if (parseInt(module.id) === sectionId) {
+                     element = module;
+                     counterElement = i;
+                  }
+               });
+               updatePreviewHeader(false);
+               subElementsName.forEach(subElementName => {
+                  updateCurrentAccordions(subElementName);
+               });
+            },
+            error: function () {
+               window.console.log('failure');
+            }
+         });
       handleModuleEmbedAndValidation();
    } else {
       window.$.ajax(
-          {
-             type: "POST",
-             url: "../handlers/ajax_subquestion_handler.php",
-             data: {
-                sectionId: sectionId,
-                courseId: courseId
-             },
-             success: function(response) {
-                let parsedResponse = JSON.parse(response);
-                parsedResponse.data.forEach(function(subQuestion, i) {
-                   if (parseInt(subQuestion.id) === subQuestionId) {
-                      element = subQuestion;
-                      counterElement = parsedResponse.sectionIndex;
-                      counterSubElement = i;
-                   }
-                });
-                updatePreviewHeader(true);
-                subElementsName.forEach(subElementName => {
-                   updateCurrentAccordions(subElementName);
-                });
-             },
-             error: function() {
-                window.console.log('failure');
-             }
-          });
+         {
+            type: "POST",
+            url: "../handlers/ajax_subquestion_handler.php",
+            data: {
+               sectionId: sectionId,
+               courseId: courseId
+            },
+            success: function (response) {
+               let parsedResponse = JSON.parse(response);
+               parsedResponse.data.forEach(function (subQuestion, i) {
+                  if (parseInt(subQuestion.id) === subQuestionId) {
+                     element = subQuestion;
+                     counterElement = parsedResponse.sectionIndex;
+                     counterSubElement = i;
+                  }
+               });
+               updatePreviewHeader(true);
+               subElementsName.forEach(subElementName => {
+                  updateCurrentAccordions(subElementName);
+               });
+            },
+            error: function () {
+               window.console.log('failure');
+            }
+         });
       initRedactTools(1, toolList);
       handleFreeActivity();
+      validateSubquestionForm();
    }
 }
 
@@ -133,11 +143,13 @@ function handleFreeActivity() {
  */
 function hideShowFreeActivity(freeTypesTextArea, i) {
    let currentContainer = document.getElementById('fitem_id_exploration_activity_free_type_' + i);
-   if (freeTypesTextArea[i].value !== '19') {
-      currentContainer.setAttribute('style', 'display: none !important;');
-   } else {
-      if (currentContainer.getAttribute('style') !== null) {
-         currentContainer.removeAttribute('style');
+   if (currentContainer) {
+      if (freeTypesTextArea[i].value !== '19') {
+         currentContainer.setAttribute('style', 'display: none !important;');
+      } else {
+         if (currentContainer.getAttribute('style') !== null) {
+            currentContainer.removeAttribute('style');
+         }
       }
    }
 }
@@ -147,7 +159,7 @@ function hideShowFreeActivity(freeTypesTextArea, i) {
  */
 function updateAddButtonStyle() {
    let addButtons = document.querySelectorAll('[name^="add"]');
-   addButtons.forEach(function(addButton, i) {
+   addButtons.forEach(function (addButton, i) {
       if (addButton.getAttribute('type') === 'submit') {
          let colContainers = document.querySelectorAll('.add_action_button');
          let icon = document.createElement('i');
@@ -169,7 +181,7 @@ function updateAddButtonStyle() {
  */
 function updateRemoveButtonStyle(isSectionPage, isSubQuestionPage) {
    let removeButtons = document.querySelectorAll('[name^="remove_"]');
-   removeButtons.forEach(removeButton=> {
+   removeButtons.forEach(removeButton => {
       if (removeButton.getAttribute('type') === 'submit') {
          let icon = document.createElement('i');
 
@@ -187,7 +199,7 @@ function updateRemoveButtonStyle(isSectionPage, isSubQuestionPage) {
       disableRemoveButton([...removeButtons], 'id_remove_section');
    } else if (isSubQuestionPage) {
       disableRemoveButton([...removeButtons]
-          .filter(removeButton => removeButton.id.includes('exploration')), 'id_remove_exploration');
+         .filter(removeButton => removeButton.id.includes('exploration')), 'id_remove_exploration');
       disableRemoveButton([...removeButtons].filter(removeButton => removeButton.id.includes('resource')), 'id_remove_resource');
    }
 
@@ -228,8 +240,8 @@ function changeTag(element, tag) {
       newElem.appendChild(clone.firstChild);
    }
 
-   if(clone.attributes) {
-      for(let i = 0; i < clone.attributes.length; i++) {
+   if (clone.attributes) {
+      for (let i = 0; i < clone.attributes.length; i++) {
          newElem.setAttribute(clone.attributes[i].name, clone.attributes[i].value);
       }
    }
@@ -243,10 +255,12 @@ function changeTag(element, tag) {
 function updatePreviewHeader(isSubquestion) {
    let headerPreview = document.querySelector('[id*="preview_header"]');
    if (isSubquestion) {
-      headerPreview.firstElementChild.innerHTML = elementName + (counterElement + 1) + '.'
-          + (counterSubElement + 1) + ' - ' + removeTags(element.title);
+      headerPreview.firstElementChild.innerHTML =
+          elementName + ' ' + (counterElement + 1) + '.' + (counterSubElement + 1) + ' - ' + removeTags(element.title);
    } else {
-      headerPreview.firstElementChild.innerHTML = elementName + (counterElement + 1) + ' - ' + removeTags(element.title);
+      headerPreview.firstElementChild.innerHTML = element.title
+          ? elementName + ' ' + (counterElement + 1) + ' - ' + removeTags(element.title)
+          : elementName + ' ' + (counterElement + 1);
    }
 
 }
@@ -254,24 +268,28 @@ function updatePreviewHeader(isSubquestion) {
 /**
  * @param {string} subElementName
  */
-function updateCurrentAccordions(subElementName) {
-   let accordions = null;
+async function updateCurrentAccordions(subElementName) {
+   let accordions = [];
    let valueForAccordion = null;
    let valueForDiv = null;
-   if (subElementName === dictionnary.trame) {
+   let subQName = await getString('subquestion', 'format_udehauthoring');
+   let explorationName = await getString('exploration', 'format_udehauthoring');
+   let resourceName = await getString('resource', 'format_udehauthoring');
+
+   if (subElementName === subQName) {
       accordions = document.querySelectorAll('[class*="row_section_subquestion_container"]');
       valueForAccordion = 'SectionSubQuestion_';
       valueForDiv = 'subquestion';
-   } else if (subElementName === dictionnary.resource) {
+   } else if (subElementName === resourceName) {
       accordions = document.querySelectorAll('[class*="row_subquestion_resource_container"]');
       valueForAccordion = 'SubQuestionResource_';
       valueForDiv = 'resource';
-   } else if (subElementName === dictionnary.activity) {
+   } else if (subElementName === explorationName) {
       accordions = document.querySelectorAll('[class*="row_subquestion_exploration_container"]');
       valueForAccordion = 'SubQuestionExploration_';
       valueForDiv = 'exploration';
    }
-   accordions.forEach(function(accordion, i) {
+   for (const [i, accordion] of accordions.entries()) {
       let accordionContainer = accordion.querySelector('[class*="accordion-container"]');
       let headerLink = accordionContainer.firstElementChild.firstElementChild;
       headerLink.href = '#collapse' + valueForAccordion + (i);
@@ -282,16 +300,16 @@ function updateCurrentAccordions(subElementName) {
          headerLink.setAttribute('aria-expanded', 'false');
          headerLink.setAttribute('class', 'collapsed');
       }
-      if (subElementName === dictionnary.trame) {
-         updateAccordionText(headerLink, subElementName, i, element.subquestions);
-      } else if (subElementName === dictionnary.resource) {
-         updateAccordionText(headerLink, subElementName, i, element.resources);
-      } else if (subElementName === dictionnary.activity) {
-         updateAccordionText(headerLink, subElementName, i, element.explorations, false);
+      if (subElementName === subQName) {
+         await updateAccordionText(headerLink, subElementName + ' ', i, element.subquestions);
+      } else if (subElementName === resourceName) {
+         await updateAccordionText(headerLink, subElementName + ' ', i, element.resources);
+      } else if (subElementName === explorationName) {
+         await updateAccordionText(headerLink, subElementName + ' ', i, element.explorations, false);
       }
-   });
+   }
    let addContainer = document.getElementById('add_' + valueForDiv + '_container');
-   if (subElementName === dictionnary.trame) {
+   if (subElementName === subQName) {
       addContainer.firstElementChild.firstElementChild.innerHTML =
           subElementName + ' ' + (counterElement + 1) + '.' + (accordions.length + 1);
    } else {
@@ -307,25 +325,27 @@ function updateCurrentAccordions(subElementName) {
  * @param {array} array
  * @param {boolean} hasTitle
  */
-function updateAccordionText(headerLink, subElementName, counter, array, hasTitle = true) {
+async function updateAccordionText(headerLink, subElementName, counter, array, hasTitle = true) {
+   let subQName = await getString('subquestion', 'format_udehauthoring');
    if (array && array[counter]) {
       let title = array[counter].title;
       let headerContent = '';
       if (hasTitle) {
-         headerContent = subElementName === dictionnary.trame
+         headerContent = subElementName.trim() === subQName.trim()
              ? subElementName + (counterElement + 1) + '.' + (counter + 1) + ' - ' + removeTags(title)
              // eslint-disable-next-line max-len
              : subElementName + (counterElement + 1) + '.' + (counterSubElement + 1) + '.' + (counter + 1) + ' - ' + removeTags(title);
       } else {
-         headerContent = subElementName === dictionnary.trame
+         headerContent = subElementName.trim() === subQName
              ? subElementName + (counterElement + 1) + '.' + (counter + 1)
              : subElementName + (counterElement + 1) + '.' + (counterSubElement + 1) + '.' + (counter + 1);
       }
       headerLink.innerHTML = headerContent.length > 70 ? headerContent.substring(0, 70) + '...' : headerContent;
    } else {
-      headerLink.innerHTML = subElementName === dictionnary.trame
-      ? subElementName + (counterElement + 1) + '.' + (counter + 1)
-      : subElementName + (counterElement + 1) + '.' + (counterSubElement + 1) + '.' + (counter + 1);
+      headerLink.innerHTML = subElementName.trim() === subQName
+          ? subElementName + (counterElement + 1) + '.' + (counter + 1)
+          : subElementName + (counterElement + 1) + '.' + (counterSubElement + 1) + '.' + (counter + 1);
+
    }
 }
 

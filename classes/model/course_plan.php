@@ -5,6 +5,8 @@ use context;
 use context_course;
 use format_udehauthoring\utils;
 
+require_once($CFG->dirroot. '/course/format/udehauthoring/lib.php');
+
 /**
  * General information about the course written in the authoring tool.
  * Responsible for CRUD database operations and data structure conversions.
@@ -26,16 +28,22 @@ class course_plan
     public $coursezoomlink = null;
     public $title = null;
     public $question = null;
+    public $questionformat = null;
     public $description = null;
+    public $descriptionformat = null;
     public $isembed = null;
     public $embed = null;
     public $introduction = null;
     public $vignette = null;
+    public $additionalinformation = null;
     public $sections = null;
     public $teachingobjectives = null;
     public $problematic = null;
+    public $problematicformat = null;
     public $place = null;
+    public $placeformat = null;
     public $method = null;
+    public $methodformat = null;
     public $attendance = null;
     public $plagiarism = null;
     public $annex = null;
@@ -54,6 +62,9 @@ class course_plan
         switch ($postdata['anchor']) {
             case 'displayable-form-informations-container':
                 $courseplan = course_plan::instance_general_info_by_form_data($data);
+                break;
+            case 'displayable-form-additional-information-container':
+                $courseplan = course_plan::instance_additional_info_by_form_data($data, $postdata);
                 break;
             case 'displayable-form-objectives-container':
                 $courseplan = course_plan::instance_objectives_by_form_data($data, $postdata);
@@ -92,16 +103,57 @@ class course_plan
         $courseplan->teacherzoomlink = $data->teacher_zoom_link;
         $courseplan->coursezoomlink = $data->course_zoom_link;
         $courseplan->title = $data->course_title;
-        $courseplan->question = $data->course_question['text'];
-        $courseplan->description = $data->course_description['text'];
+        $courseplan->question_editor = $data->course_question;
+        $courseplan->description_editor = $data->course_description;
         $courseplan->isembed = $data->isembed;
         $courseplan->embed = $data->course_introduction_embed;
         $courseplan->introduction = $data->course_introduction;
         $courseplan->vignette = $data->course_vignette;
-        $courseplan->problematic = $data->course_problematic['text'];
-        $courseplan->place = $data->course_place_in_program['text'];
-        $courseplan->method = $data->course_method['text'];
-        $courseplan->annex = $data->course_annex['text'];
+        $courseplan->problematic_editor = $data->course_problematic;
+        $courseplan->place_editor = $data->course_place_in_program;
+        $courseplan->method_editor = $data->course_method;
+
+        return $courseplan;
+    }
+
+    /**
+     * Instantiate fields for Additional Informations.
+     * @param $data object
+     * @param $postdata array
+     * @return course_plan
+     */
+    private static function instance_additional_info_by_form_data($data, $postdata) {
+        $courseplan = new self();
+        if ($data->id) {
+            $courseplan->id = $data->id;
+        }
+        $courseplan->additionalinformation = [];
+        $addinfoid = null;
+
+
+        foreach($postdata as $key => $_) {
+            if(preg_match('/add_info/', $key)) {
+                if(preg_match('/id_value/', $key)) {
+                    $addinfoid = $_;
+                } else if(preg_match('/add_info_title/', $key)) {
+                    $addinfoplan = new additionalinformation_plan();
+                    if($courseplan->id) {
+                        $addinfoplan->audehcourseid = $courseplan->id;
+                    }
+                    $addinfoplan->id = $addinfoid;
+                    if(gettype($_) == 'array') {
+                        $addinfoplan->title = $_['text'];
+                    } else {
+                        $addinfoplan->title = $_;
+                    }
+                    $courseplan->additionalinformation[] = $addinfoplan;
+                    $addinfoid = null;
+                } else if(preg_match('/add_info_content/', $key)) {
+                    $currentAddInfo = $courseplan->additionalinformation[count($courseplan->additionalinformation) - 1];
+                    $currentAddInfo->content_editor = $_;
+                }
+            }
+        }
 
         return $courseplan;
     }
@@ -130,11 +182,7 @@ class course_plan
                         $teachingobjectiveplan->audehcourseid = $courseplan->id;
                     }
                     $teachingobjectiveplan->id = $courseteachingid;
-                    if(gettype($_) == 'array') {
-                        $teachingobjectiveplan->teachingobjective = $_['text'];
-                    } else {
-                        $teachingobjectiveplan->teachingobjective = $_;
-                    }
+                    $teachingobjectiveplan->teachingobjective_editor = $_;
                     $teachingobjectiveplan->learningobjectives = [];
                     $courseplan->teachingobjectives[] = $teachingobjectiveplan;
                     $courseteachingid = null;
@@ -146,12 +194,7 @@ class course_plan
                 }
                 else if(preg_match('/course_learning_objectives_def/', $key)) {
                     $learningobjectiveplan = new learningobjective_plan();
-                    if(gettype($_) == 'array') {
-                        $learningobjectiveplan->learningobjective = $_['text'];
-                    } else {
-                        $learningobjectiveplan->learningobjective = $_;
-                    }
-
+                    $learningobjectiveplan->learningobjective_editor = $_;
                     $learningobjectiveplan->audehteachingobjectiveid = $courseplan->teachingobjectives[count($courseplan->teachingobjectives) - 1]->id;
                     $learningobjectiveplan->id = $courselearningid;
                     $courseplan->teachingobjectives[count($courseplan->teachingobjectives) - 1]->learningobjectives[] = $learningobjectiveplan;
@@ -183,36 +226,24 @@ class course_plan
             if(preg_match('/section/', $key)) {
                 if(preg_match('/id_value/', $key)) {
                     $sectionid = $_;
-                }
-                else if(preg_match('/section_title/', $key)) {
+                } else if(preg_match('/section_title/', $key)) {
                     $sectionplan = new section_plan();
                     if ($courseplan->id) {
                         $sectionplan->audehcourseid = $courseplan->id;
                     }
-                    if(gettype($_) == 'array') {
-                        $sectionplan->title = $_['text'];
-                    } else {
-                        $sectionplan->title = $_;
-                    }
+                    $sectionplan->title_editor = $_;
                     $sectionplan->id = $sectionid;
+                    $sectionplan->isvisiblepreview =
+                        array_key_exists('section_isvisible_' . count($courseplan->sections), $postdata) ? 1 : 0;
                     $courseplan->sections[] = $sectionplan;
                     $sectionid = null;
                 } else if(preg_match('/section_description/', $key)){
                     $currentSection = $courseplan->sections[count($courseplan->sections) - 1];
-                    if(gettype($_) == 'array') {
-                        $currentSection->description = $_['text'];
-                    } else {
-                        $currentSection->description = $_;
-                    }
+                    $currentSection->description_editor = $_;
                 } else if(preg_match('/section_question/', $key)){
                     $currentSection = $courseplan->sections[count($courseplan->sections) - 1];
-                    if(gettype($_) == 'array') {
-                        $currentSection->question = $_['text'];
-                    } else {
-                        $currentSection->question = $_;
-                    }
+                    $currentSection->question_editor = $_;
                 }
-
             }
         }
 
@@ -242,22 +273,14 @@ class course_plan
                     if ($courseplan->id) {
                         $evaluationplan->audehcourseid = $courseplan->id;
                     }
-                    if(gettype($_) == 'array') {
-                        $evaluationplan->title = $_['text'];
-                    } else {
-                        $evaluationplan->title = $_;
-                    }
+                    $evaluationplan->title_editor = $_;
                     $evaluationplan->id = $evaluationid;
                     $evaluationplan->learningobjectiveids = [];
                     $courseplan->evaluations[] = $evaluationplan;
                     $evaluationid = null;
                 } else if(preg_match('/evaluation_description/', $key)){
                     $currentEvaluation = $courseplan->evaluations[count($courseplan->evaluations) - 1];
-                    if(gettype($_) == 'array') {
-                        $currentEvaluation->description = $_['text'];
-                    } else {
-                        $currentEvaluation->description = $_;
-                    }
+                    $currentEvaluation->description_editor = $_;
                 } else if(preg_match('/evaluation_weight/', $key)){
                     $currentEvaluation = $courseplan->evaluations[count($courseplan->evaluations) - 1];
                     $currentEvaluation->weight = $_;
@@ -275,21 +298,11 @@ class course_plan
                     }
                 } else if(preg_match('/evaluation_module/', $key)){
                     $currentEvaluation = $courseplan->evaluations[count($courseplan->evaluations) - 1];
-                    $currentEvaluation->audehsectionid = intval($_);
+                    $currentEvaluation->audehsectionids = $_;
                 }
             }
         }
         return $courseplan;
-    }
-
-
-    public static function instance_by_courseid_exists($courseid) {
-        global $DB;
-        $record = $DB->get_record('udehauthoring_course', ['courseid' => $courseid]);
-        if (!$record) {
-            return false;
-        }
-        return true;
     }
 
     /**
@@ -306,6 +319,7 @@ class course_plan
         global $DB;
 
         $record = $DB->get_record('udehauthoring_course', ['courseid' => $courseid]);
+
         if (!$record) {
             return false;
         }
@@ -313,17 +327,36 @@ class course_plan
         $courseplan = new self();
         foreach($courseplan as $key => $_) {
             if ('sections' === $key) {
-                $courseplan->$key = section_plan::instance_all_by_course_plan_id($courseplan->id);
+                $courseplan->$key = section_plan::instance_all_by_course_plan_id($courseplan->id, $context);
             } else if('teachingobjectives' === $key) {
-                $courseplan->$key = teachingobjective_plan::instance_all_by_course_plan_id($courseplan->id);
+                $courseplan->$key = teachingobjective_plan::instance_all_by_course_plan_id($courseplan->id, $context);
+            } else if('additionalinformation' === $key) {
+                $courseplan->$key = additionalinformation_plan::instance_all_by_course_plan_id($courseplan->id, $context);
             } else if('evaluations' === $key) {
-                $courseplan->$key = evaluation_plan::instance_all_by_course_plan_id($courseplan->id);
+                $courseplan->$key = evaluation_plan::instance_all_by_course_plan_id($courseplan->id, $context);
             } else if('units' === $key) {
                 $courseplan->$key = unit_plan::instance_all_by_course_plan_id($courseplan->id);
-            } else if($key != 'introduction' && $key != 'vignette') {
+            } else if($key != 'introduction' && $key != 'vignette' && $key != 'additionalinformation') {
                 $courseplan->$key = $record->$key;
             }
         }
+
+        $editors = ['question', 'description', 'problematic', 'place', 'method'];
+        $options = format_udehauthoring_get_editor_options($context);
+
+        foreach ($editors as $editor) {
+            $courseplan = file_prepare_standard_editor(
+                $courseplan,
+                $editor,
+                $options,
+                $context,
+                'format_udehauthoring',
+                'course_'.$editor,
+                0
+            );
+        }
+
+
         return $courseplan;
     }
 
@@ -391,13 +424,16 @@ class course_plan
             else if('teachingobjectives' === $key) {
                 $courseplan->$key = teachingobjective_plan::instance_all_by_course_plan_id($courseplan->id);
             }
+            else if('additionalinformation' === $key) {
+                $courseplan->$key = additionalinformation_plan::instance_all_by_course_plan_id($courseplan->id);
+            }
             else if('evaluations' === $key) {
                 $courseplan->$key = evaluation_plan::instance_all_by_course_plan_id($courseplan->id);
             }
             else if('units' === $key) {
                 $courseplan->$key = unit_plan::instance_all_by_course_plan_id($courseplan->id);
             }
-            else if($key != 'introduction' && $key !='vignette') {
+            else if($key != 'introduction' && $key !='vignette' && !str_ends_with($key, 'editor')) {
                 $courseplan->$key = $record->$key;
             }
         }
@@ -427,7 +463,7 @@ class course_plan
                 'course_introduction' => $draftitemid,
             ];
         } else {
-            return (object)[
+            $obj= (object)[
                 'id' => $this->id,
                 'course_id' => $this->courseid,
                 'units' => array_map(function($unit) { return $unit->audehunitid; }, $this->units),
@@ -442,36 +478,77 @@ class course_plan
                 'teacher_zoom_link' => $this->teacherzoomlink,
                 'course_zoom_link' => $this->coursezoomlink,
                 'course_title' => $this->title,
-                'course_question' => (object)[
-                    'text' => $this->question,
-                    'format' => FORMAT_HTML
-                ],
-                'course_description' => (object)[
-                    'text' => $this->description,
-                    'format' => FORMAT_HTML
-                ],
+                'course_description' => self::prepareEditor($context, 'description', $this, 'course_'),
+                'course_question' => self::prepareEditor($context, 'question', $this, 'course_'),
                 'course_introduction' => $draftitemid,
                 'isembed' => $this->isembed,
                 'course_introduction_embed' => $this->embed,
                 'course_vignette' => $draftitemidvignette,
-                'course_problematic' => (object)[
-                    'text' => $this->problematic,
-                    'format' => FORMAT_HTML
-                ],
-                'course_place_in_program' => (object)[
-                    'text' => $this->place,
-                    'format' => FORMAT_HTML
-                ],
-                'course_method' => (object)[
-                    'text' => $this->method,
-                    'format' => FORMAT_HTML
-                ],
-                'course_annex' => (object)[
-                    'text' => $this->annex,
-                    'format' => FORMAT_HTML
-                ],
+                'course_problematic' => self::prepareEditor($context, 'problematic', $this, 'course_'),
+                'course_place_in_program' => self::prepareEditor($context, 'place', $this, 'course_'),
+                'course_method' => self::prepareEditor($context, 'method', $this, 'course_'),
+                'add_info_title_0' =>
+                    count($this->additionalinformation) > 0 ? $this->additionalinformation[0]->title : '',
+                'add_info_content_0' =>
+                    self::prepareEditorForArrayElm($context, 'content', $this->additionalinformation, 'course_additional_info_'),
+                'course_teaching_objectives_0' =>
+                    self::prepareEditorForArrayElm($context, 'teachingobjective', $this->teachingobjectives, 'course_'),
+                'course_learning_objectives_def_0_0' => count($this->teachingobjectives) > 0
+                    && count($this->teachingobjectives[0]->learningobjectives) > 0
+                    ? (object)[
+                        'text' => file_rewrite_pluginfile_urls(
+                            $this->teachingobjectives[0]->learningobjectives[0]->learningobjective,
+                            'pluginfile.php',
+                            $context->id,
+                            'format_udehauthoring',
+                            'course_learningobjective_' . $this->teachingobjectives[0]->learningobjectives[0]->id,
+                            0
+                        ),
+                        'format' => FORMAT_HTML
+                    ] :
+                    (object)[
+                        'text' => '',
+                        'format' => FORMAT_HTML
+                    ],
+                'section_title_0' =>
+                    self::prepareEditorForArrayElm($context, 'title', $this->sections, 'course_section_'),
+                'section_question_0' =>
+                    self::prepareEditorForArrayElm($context, 'question', $this->sections, 'course_section_'),
+                'section_description_0' =>
+                    self::prepareEditorForArrayElm($context, 'description', $this->sections, 'course_section_'),
+                'evaluation_title_0' =>
+                    self::prepareEditorForArrayElm($context, 'title', $this->evaluations, 'course_evaluation_'),
+                'evaluation_description_0' =>
+                    self::prepareEditorForArrayElm($context, 'description', $this->evaluations, 'course_evaluation_'),
             ];
+
+            return $obj;
         }
+    }
+
+
+    private static function prepareEditorForArrayElm($context, $field, $array, $prefix) {
+        return !empty($array)
+            ? self::prepareEditor($context, $field, $array[0], $prefix, true)
+            : (object)[
+                    'text' => '',
+                    'format' => FORMAT_HTML
+                ];
+    }
+
+    private static function prepareEditor($context, $field, $plan, $prefix, $withId = false) {
+        return (object)[
+            'text' => file_rewrite_pluginfile_urls(
+                $plan->{$field},
+                'pluginfile.php',
+                $context->id,
+                'format_udehauthoring',
+                $withId ? $prefix . $field . '_' . $plan->id : $prefix . $field,
+
+                0
+            ),
+            'format' => FORMAT_HTML
+        ];
     }
 
     /**
@@ -499,6 +576,9 @@ class course_plan
                 return $isgood;
             case 'displayable-form-evaluations-container':
                 return $this->save_evaluations($context);
+            case 'displayable-form-additional-information-container':
+                $this->save_additional_infos($context);
+                return $isgood;
         }
         return '';
     }
@@ -523,15 +603,17 @@ class course_plan
         $record->title = $this->title;
         $record->isembed = $this->isembed;
         $record->embed = $this->embed;
-        $record->question = $this->question;
-        $record->description = $this->description;
-        $record->problematic = $this->problematic;
-        $record->place = $this->place;
-        $record->method = $this->method;
-        $record->annex = $this->annex;
+        $record->annex = '';
 
         utils::file_save_draft_area_files($this->introduction, $context->id, 'format_udehauthoring', 'courseintroduction', 0, ['subdirs' => 1]);
         utils::file_save_draft_area_files($this->vignette, $context->id, 'format_udehauthoring', 'coursevignette', 0, ['subdirs' => 1]);
+
+        $editors = ['question', 'description', 'problematic', 'place', 'method'];
+        foreach ($editors as $editor) {
+            if (!empty($this->{$editor.'_editor'})) {
+                $record = utils::prepareEditorContent($this, $record, $context, $editor, 'course_', false);
+            }
+        }
 
         if (isset($record->id)) {
             utils::db_update_if_changes('udehauthoring_course', $record);
@@ -565,7 +647,30 @@ class course_plan
                 $unitplan->delete();
             }
         }
+    }
 
+    private function save_additional_infos($context) {
+
+        global  $DB;
+        $input_infos_id = [];
+        $info_record_ids = $DB->get_records('udehauthoring_add_info', ['audehcourseid' => $this->id], '', 'id');
+
+        foreach ($this->additionalinformation as $additionalinformation) {
+            $input_infos_id[$additionalinformation->id] = $additionalinformation->id;
+            if ($additionalinformation->id && empty($additionalinformation->title)) {
+                $additionalinformation->delete();
+            } else {
+                $additionalinformation->save($context, false);
+            }
+        }
+
+        foreach ($info_record_ids as $info_record_id) {
+            if (!in_array($info_record_id->id, $input_infos_id)) {
+                $additionalinformationplan =
+                    \format_udehauthoring\model\additionalinformation_plan::instance_by_id($info_record_id->id);
+                $additionalinformationplan->delete();
+            }
+        }
 
     }
 
@@ -577,7 +682,7 @@ class course_plan
 
         foreach ($this->teachingobjectives as $teaching_objective) {
             $input_teachings_id[$teaching_objective->id] = $teaching_objective->id;
-            if ($teaching_objective->id && empty($teaching_objective->teachingobjective)) {
+            if ($teaching_objective->id && (empty($teaching_objective->teachingobjective) && $teaching_objective->teachingobjective_editor['text'] === '')) {
                 $teaching_objective->delete();
             } else {
                 $teaching_objective->save($context, false);
@@ -600,12 +705,7 @@ class course_plan
 
         foreach ($this->sections as $section) {
             $input_sections_id[$section->id] = $section->id;
-            if ($section->id && empty($section->title)) {
-                $section->delete();
-            } else {
-                $section->save($context, false);
-            }
-
+            $section->save($context, false);
         }
 
         foreach($section_record_ids as $section_record_id) {
@@ -614,19 +714,34 @@ class course_plan
                 $sectionplan->delete();
             }
         }
-
     }
 
     private function save_evaluations($context) {
         global  $DB;
         $input_evaluations_id = [];
+        $dontsavemodules = false;
 
-        for($i = 0; $i < count($this->evaluations) - 1; $i++) {
-            $currentevaluationmodule = $this->evaluations[$i]->audehsectionid;
-            for($j = $i + 1; $j < count($this->evaluations); $j++) {
-                if(($currentevaluationmodule !== null || $currentevaluationmodule != '')
-                    && (($currentevaluationmodule === $this->evaluations[$j]->audehsectionid) && $currentevaluationmodule !== 0)) {
-                    return get_string('evaluationsaveerror', 'format_udehauthoring');
+        for($i = 0; $i < count($this->evaluations); $i++) {
+            $currentevaluationmodule = $this->evaluations[$i]->audehsectionids;
+
+            $skip = true;
+
+            foreach($currentevaluationmodule as $key => $value) {
+                if(intval($value) !== 0) {
+                    $skip = false;
+                    break;
+                }
+            }
+
+            for($j = 0; $j < count($this->evaluations); $j++) {
+                if($i !== $j) {
+                    $compareevaluationmodule = $this->evaluations[$j]->audehsectionids;
+
+                    foreach($compareevaluationmodule as $key => $value) {
+                        if($value === $currentevaluationmodule[$key] && intval($value) !== 0) {
+                            $dontsavemodules = true;
+                        }
+                    }
                 }
             }
         }
@@ -651,11 +766,7 @@ class course_plan
 
         foreach ($this->evaluations as $evaluation) {
             $input_evaluations_id[$evaluation->id] = $evaluation->id;
-            if ($evaluation->id && empty($evaluation->title)) {
-                $evaluation->delete();
-            } else {
-                $evaluation->save($context, false);
-            }
+            $evaluation->save($context, false, $dontsavemodules);
         }
 
         foreach($evaluation_record_ids as $evaluation_record_id) {
@@ -664,6 +775,11 @@ class course_plan
                 $evaluationplan->delete();
             }
         }
-        return '';
+
+        if(!$dontsavemodules) {
+            return '';
+        } else {
+            return get_string('evaluationsaveerror', 'format_udehauthoring');
+        }
     }
 }
